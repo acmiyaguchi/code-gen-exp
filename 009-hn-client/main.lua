@@ -5,6 +5,7 @@
 local api = require("api")
 local ui = require("ui")
 local utils = require("utils")
+local https = require("https")
 
 -- Application state
 local state = {
@@ -17,6 +18,7 @@ local state = {
     scrollY = 0,
     refreshTimer = 0,
     autoRefreshInterval = 300, -- 5 minutes in seconds
+    usingMockData = false  -- Track if we're using mock data
 }
 
 function love.load()
@@ -24,6 +26,12 @@ function love.load()
     love.window.setTitle("Love2D Hacker News Client")
     love.window.setMode(800, 600, {resizable = true})
     love.graphics.setBackgroundColor(0.95, 0.95, 0.95)
+    
+    -- Initialize HTTPS module
+    https.init()
+    
+    -- Add key handler for switching to mock mode
+    print("Press F5 to switch to mock data mode if experiencing connection issues")
     
     -- Load font
     ui.loadFonts()
@@ -36,14 +44,39 @@ function loadTopStories()
     state.loading = true
     state.error = nil
     state.scrollY = 0
+    state.usingMockData = false
     
     api.fetchTopStories(function(success, result)
         state.loading = false
         
         if success then
             state.stories = result
+            -- Check if we're using mock data (for user feedback)
+            state.usingMockData = https.isUsingMockData()
         else
             state.error = "Failed to load stories: " .. (result or "Unknown error")
+            -- If we're in mock mode, we'll retry with mock data
+            if https.isUsingMockData() then
+                print("Retrying with mock data...")
+                -- Clear the error message since we're retrying
+                state.error = nil
+                state.loading = true
+                -- Add a small delay to make the retry visible
+                love.timer.sleep(0.5)
+                -- Retry fetch
+                api.fetchTopStories(function(mockSuccess, mockResult)
+                    state.loading = false
+                    if mockSuccess then
+                        state.stories = mockResult
+                        state.usingMockData = true
+                    else
+                        state.error = "Failed to load stories: " .. (mockResult or "Unknown error")
+                    end
+                end)
+            else
+                print("Error loading stories: " .. (result or "Unknown error"))
+                print("Press F5 to switch to mock data mode")
+            end
         end
     end)
 end
@@ -82,6 +115,9 @@ function loadStoryComments(storyId)
 end
 
 function love.update(dt)
+    -- Update HTTPS module to process requests
+    https.update(dt)  -- Add the dt parameter here
+    
     -- Update refresh timer
     state.refreshTimer = state.refreshTimer + dt
     if state.refreshTimer >= state.autoRefreshInterval then
@@ -107,6 +143,13 @@ function love.draw()
     -- Draw error message if present
     if state.error then
         ui.drawErrorMessage(state.error)
+    end
+    
+    -- Indicate when using mock data
+    if state.usingMockData then
+        love.graphics.setColor(0.9, 0.5, 0.1)
+        love.graphics.setFont(ui.fonts.small)
+        love.graphics.printf("Using mock data (press F5 to refresh)", 0, 5, love.graphics.getWidth(), "right")
     end
 end
 
@@ -167,5 +210,9 @@ function love.keypressed(key)
         elseif state.screen == "story_detail" and state.selectedStory then
             loadStoryComments(state.selectedStory.id)
         end
+    elseif key == "f5" then
+        -- Switch to mock data mode
+        https.useMockData()
+        loadTopStories()
     end
 end

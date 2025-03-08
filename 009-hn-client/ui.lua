@@ -10,7 +10,7 @@ local COMMENT_PADDING = 15
 local MAX_VISIBLE_COMMENTS = 10
 
 -- Fonts
-local fonts = {
+ui.fonts = {
     title = nil,
     subtitle = nil,
     normal = nil,
@@ -34,11 +34,11 @@ local colors = {
 
 -- Load fonts
 function ui.loadFonts()
-    fonts.title = love.graphics.newFont(18)
-    fonts.subtitle = love.graphics.newFont(14)
-    fonts.normal = love.graphics.newFont(12)
-    fonts.small = love.graphics.newFont(10)
-    fonts.button = love.graphics.newFont(14)
+    ui.fonts.title = love.graphics.newFont(18)
+    ui.fonts.subtitle = love.graphics.newFont(14)
+    ui.fonts.normal = love.graphics.newFont(12)
+    ui.fonts.small = love.graphics.newFont(10)
+    ui.fonts.button = love.graphics.newFont(14)
 end
 
 -- Draw the story list screen
@@ -50,7 +50,7 @@ function ui.drawStoryList(stories, scrollY, loading, error)
     love.graphics.rectangle("fill", 0, 0, windowWidth, 50)
     
     love.graphics.setColor(1, 1, 1)
-    love.graphics.setFont(fonts.title)
+    love.graphics.setFont(ui.fonts.title)
     love.graphics.print("Hacker News", PADDING, 15)
     
     -- Draw refresh button
@@ -71,12 +71,12 @@ function ui.drawStoryList(stories, scrollY, loading, error)
                 
                 -- Story title
                 love.graphics.setColor(colors.storyTitle)
-                love.graphics.setFont(fonts.subtitle)
+                love.graphics.setFont(ui.fonts.subtitle)
                 love.graphics.printf(story.title or "No title", PADDING * 2, y + 10, windowWidth - PADDING * 4, "left")
                 
                 -- Story metadata
                 love.graphics.setColor(colors.storyMeta)
-                love.graphics.setFont(fonts.normal)
+                love.graphics.setFont(ui.fonts.normal)
                 
                 local metaText = (story.score or 0) .. " points by " .. (story.by or "anonymous") 
                     .. " • " .. utils.timeAgo(story.time)
@@ -99,7 +99,7 @@ function ui.drawStoryList(stories, scrollY, loading, error)
         love.graphics.translate(0, scrollY)
     elseif not loading and not error then
         love.graphics.setColor(colors.storyMeta)
-        love.graphics.setFont(fonts.normal)
+        love.graphics.setFont(ui.fonts.normal)
         love.graphics.printf("No stories found", 0, 100, windowWidth, "center")
     end
 end
@@ -122,12 +122,12 @@ function ui.drawStoryDetail(story, comments, scrollY, loading, error)
     
     -- Story title
     love.graphics.setColor(1, 1, 1)
-    love.graphics.setFont(fonts.title)
+    love.graphics.setFont(ui.fonts.title)
     love.graphics.printf(story.title or "No title", PADDING, 60, windowWidth - PADDING * 2, "left")
     
     -- Story metadata
     love.graphics.setColor(0.8, 0.8, 0.8)
-    love.graphics.setFont(fonts.normal)
+    love.graphics.setFont(ui.fonts.normal)
     
     local metaText = (story.score or 0) .. " points by " .. (story.by or "anonymous") 
         .. " • " .. utils.timeAgo(story.time)
@@ -148,7 +148,7 @@ function ui.drawStoryDetail(story, comments, scrollY, loading, error)
     
     -- Comments section
     love.graphics.setColor(1, 1, 1)
-    love.graphics.setFont(fonts.subtitle)
+    love.graphics.setFont(ui.fonts.subtitle)
     love.graphics.print("Comments", PADDING, urlY)
     
     -- Draw comments
@@ -156,7 +156,7 @@ function ui.drawStoryDetail(story, comments, scrollY, loading, error)
     
     if #comments == 0 and not loading then
         love.graphics.setColor(colors.storyMeta)
-        love.graphics.setFont(fonts.normal)
+        love.graphics.setFont(ui.fonts.normal)
         love.graphics.print("No comments yet", PADDING, commentY)
     else
         for i, comment in ipairs(comments) do
@@ -169,7 +169,7 @@ function ui.drawStoryDetail(story, comments, scrollY, loading, error)
                 
                 -- Comment author and time
                 love.graphics.setColor(colors.button)
-                love.graphics.setFont(fonts.normal)
+                love.graphics.setFont(ui.fonts.normal)
                 love.graphics.print(
                     (comment.by or "anonymous") .. " • " .. utils.timeAgo(comment.time),
                     PADDING * 2, 
@@ -178,7 +178,7 @@ function ui.drawStoryDetail(story, comments, scrollY, loading, error)
                 
                 -- Comment text
                 love.graphics.setColor(colors.storyTitle)
-                love.graphics.setFont(fonts.normal)
+                love.graphics.setFont(ui.fonts.normal)
                 local formattedText = utils.formatCommentText(comment.text or "")
                 love.graphics.printf(
                     formattedText,
@@ -216,7 +216,7 @@ function ui.calculateCommentHeight(comment, maxWidth)
     end
     
     local text = utils.formatCommentText(comment.text)
-    local font = fonts.normal
+    local font = ui.fonts.normal
     
     local _, textLines = font:getWrap(text, maxWidth)
     return 40 + #textLines * font:getHeight()
@@ -230,10 +230,10 @@ function ui.drawButton(text, x, y, width, height)
     
     -- Button text
     love.graphics.setColor(colors.buttonText)
-    love.graphics.setFont(fonts.button)
+    love.graphics.setFont(ui.fonts.button)
     
-    local textWidth = fonts.button:getWidth(text)
-    local textHeight = fonts.button:getHeight()
+    local textWidth = ui.fonts.button:getWidth(text)
+    local textHeight = ui.fonts.button:getHeight()
     love.graphics.print(
         text, 
         x + (width - textWidth) / 2, 
@@ -245,7 +245,7 @@ end
 function ui.drawLoadingIndicator()
     local windowWidth, windowHeight = love.graphics.getDimensions()
     love.graphics.setColor(colors.loading)
-    love.graphics.setFont(fonts.subtitle)
+    love.graphics.setFont(ui.fonts.subtitle)
     love.graphics.printf("Loading...", 0, windowHeight - 40, windowWidth, "center")
 end
 
@@ -256,7 +256,7 @@ function ui.drawErrorMessage(message)
     love.graphics.rectangle("fill", 0, windowHeight - 50, windowWidth, 50)
     
     love.graphics.setColor(1, 1, 1)
-    love.graphics.setFont(fonts.normal)
+    love.graphics.setFont(ui.fonts.normal)
     love.graphics.printf(message, PADDING, windowHeight - 35, windowWidth - PADDING * 2, "center")
 end
 
