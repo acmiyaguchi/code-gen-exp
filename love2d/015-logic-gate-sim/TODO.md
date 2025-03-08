@@ -1,0 +1,1 @@
+* Currently the AND gate and NOT gates are broken.
