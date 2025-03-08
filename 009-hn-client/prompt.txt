@@ -1,0 +1,61 @@
+You are a LÖVE2D game engine expert and a skilled software architect.  Your task is to design and describe the implementation of a basic Hacker News client application, built entirely within LÖVE2D.  The application should be functional and user-friendly, prioritizing clear presentation of information and efficient navigation.
+
+**I.  Application Requirements:**
+
+1.  **Fetching and Displaying Stories:**
+    *   Fetch the top stories from the Hacker News API (using the `https://hacker-news.firebaseio.com/v0/topstories.json` endpoint to get story IDs and then `https://hacker-news.firebaseio.com/v0/item/{id}.json` for individual story details).  Assume a stable internet connection.
+    *   Display a list of story titles, by authors, and scores (points).  Use a scrollable list if necessary.  The stories should be visually distinct.
+    *   Handle potential errors gracefully (e.g., network issues, API changes, invalid data). Display an appropriate error message to the user if something goes wrong.
+    *   Implement a system for refreshing the story list (e.g., a button or automatic refresh every few minutes).
+
+2.  **Story Details View:**
+    *   When a user clicks on a story in the list, display a detailed view of that story.
+    *   This view should include:
+        *   The full story title.
+        *   The author's username.
+        *   The story's score.
+        *   The time the story was posted (formatted in a human-readable way, e.g., "2 hours ago").
+        *   The story's URL (ideally, openable in the user's default web browser).
+        *   A display of the top-level comments (see section 3).  Do *not* attempt to render full comment trees initially.
+        *   A clear way to return to the main story list.
+
+3.  **Comment Display (Limited):**
+    *   In the story details view, fetch and display the *top-level* comments for the story.  You do *not* need to implement nested comment replies for this basic client.
+    *   Display each comment's author and text.
+    *   Format the comment text for readability (consider line wrapping and basic text styling).
+    *   Handle comments that may have been deleted or contain HTML entities (decode them).
+    *   Consider limiting the *number* of top-level comments displayed initially (e.g., show the first 10, with a "Load More" option if more exist). This is crucial for performance.
+
+4.  **User Interface (LÖVE2D Specific):**
+    *   Describe the layout of the application using LÖVE2D's coordinate system.  Provide concrete examples of how you would position elements on the screen (e.g., using `love.graphics.rectangle`, `love.graphics.print`, etc.).
+    *   Explain how you would handle user input (mouse clicks, scrolling) using LÖVE2D's input functions (`love.mousepressed`, `love.wheelmoved`, etc.).
+    *   Specify which LÖVE2D libraries you would use (e.g., `love.graphics`, `love.network`, `love.timer`).
+    *   Describe how you would structure your code using LÖVE2D's main functions (`love.load`, `love.update`, `love.draw`).
+    *   Consider using a simple UI library (if one exists and is allowed) or describe how you would build basic UI elements (buttons, scrollbars) from scratch.  If suggesting a library, name a specific one suitable for LÖVE2D (e.g., a lightweight GUI library on GitHub).
+
+5. **Data Handling:**
+    *   Describe how you will store the fetched story and comment data in Lua tables.  Provide example table structures.
+    *   Explain how you will handle asynchronous network requests.  LÖVE2D's `love.network` is asynchronous; detail how you will manage callbacks and update the UI when data arrives.
+
+**II.  Output Format:**
+
+Your response should be structured as a detailed design document and implementation guide.  Include the following:
+
+1.  **Overall Architecture:** A brief overview of the application's structure (e.g., Model-View-Controller, or a simpler approach suitable for LÖVE2D).
+2.  **Code Structure:**  A breakdown of the main Lua files and functions you would create, and their responsibilities.  You don't need to write *complete* code, but provide *significant code snippets* illustrating key logic and LÖVE2D API usage.  This is the most important part.  Show, don't just tell.
+3.  **Data Structures:**  Example Lua tables representing stories and comments.
+4.  **UI Layout and Interaction:** Descriptions and *code snippets* demonstrating how you would create the UI and handle user input.
+5.  **Network Requests:**  *Code snippets* demonstrating how you would use `love.network` to fetch data and handle responses.
+6. **Error Handling:** Description of how different errors will be caught and presented to the user.
+7.  **Potential Improvements (Optional):**  Briefly mention any features or optimizations you might add in a more advanced version (e.g., comment threading, offline caching, better UI scaling).
+
+**III. Considerations for Different LLMs:**
+
+*   **Code Generation Capability:** More powerful LLMs (like GPT-4) can generate more complete and functional code snippets.  Less capable LLMs might provide more high-level descriptions and pseudocode.  The prompt is designed to be useful regardless, by emphasizing *both* design and code.
+*   **LÖVE2D Knowledge:** Some LLMs might have more specific knowledge of LÖVE2D than others.  The prompt includes key API details to guide them.  If an LLM hallucinates LÖVE2D functions, that's a good indication of its limitations.
+*   **Asynchronous Handling:** Understanding how to handle asynchronous network requests and update the UI accordingly is crucial. This tests the LLM's ability to reason about event-driven programming.
+*   **Error Handling:**  A good response will demonstrate an understanding of potential failure points and how to handle them gracefully.
+*   **UI Design:** The prompt encourages the LLM to think about UI design within the constraints of LÖVE2D. This tests its ability to combine technical knowledge with practical design considerations.
+*  **Modularity**: A good response would break down the code into logical, reusable functions and potentially separate files, demonstrating good software engineering practices.
+
+This comprehensive prompt should allow you to evaluate an LLM's ability to design and implement a reasonably complex application within a specific framework (LÖVE2D). The focus on code snippets, data structures, and UI interaction makes it a good test of practical coding and design skills. Remember to run any generated code in a LÖVE2D environment to verify its functionality.
