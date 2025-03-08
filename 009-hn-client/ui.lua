@@ -43,6 +43,8 @@ end
 
 -- Draw the story list screen
 function ui.drawStoryList(stories, scrollY, loading, error, currentPage, totalPages)
+    local startTime = love.timer.getTime()
+    
     local windowWidth, windowHeight = love.graphics.getDimensions()
     
     -- Draw header
@@ -60,11 +62,13 @@ function ui.drawStoryList(stories, scrollY, loading, error, currentPage, totalPa
     if #stories > 0 then
         love.graphics.translate(0, -scrollY)
         
+        local visibleCount = 0
         for i, story in ipairs(stories) do
             local y = 60 + (i-1) * STORY_HEIGHT
             
             -- Skip if not visible
             if y + STORY_HEIGHT > scrollY and y < scrollY + windowHeight then
+                visibleCount = visibleCount + 1
                 -- Story background
                 love.graphics.setColor(colors.storyBg)
                 love.graphics.rectangle("fill", PADDING, y, windowWidth - PADDING * 2, STORY_HEIGHT - PADDING)
@@ -123,11 +127,21 @@ function ui.drawStoryList(stories, scrollY, loading, error, currentPage, totalPa
             "center"
         )
     end
+    
+    local endTime = love.timer.getTime()
+    local duration = endTime - startTime
+    -- Only log if drawing takes significantly longer than a frame (33ms = ~30fps)
+    if duration > 0.033 then
+        utils.logPerformance("UI: Story list drawing took " .. string.format("%.3f", duration) .. "s" .. 
+                            " (" .. #stories .. " stories, ~" .. visibleCount .. " visible)")
+    end
 end
 
 -- Draw a story detail view
 function ui.drawStoryDetail(story, comments, scrollY, loading, error)
     if not story then return end
+    
+    local startTime = love.timer.getTime()
     
     local windowWidth, windowHeight = love.graphics.getDimensions()
     
@@ -180,34 +194,40 @@ function ui.drawStoryDetail(story, comments, scrollY, loading, error)
         love.graphics.setFont(ui.fonts.normal)
         love.graphics.print("No comments yet", PADDING, commentY)
     else
+        local visibleComments = 0
         for i, comment in ipairs(comments) do
             -- Skip if comment is deleted or dead
             if not comment.deleted and not comment.dead then
                 -- Comment container
                 love.graphics.setColor(colors.storyBg)
                 local commentHeight = ui.calculateCommentHeight(comment, windowWidth - PADDING * 4)
-                love.graphics.rectangle("fill", PADDING, commentY, windowWidth - PADDING * 2, commentHeight)
                 
-                -- Comment author and time
-                love.graphics.setColor(colors.button)
-                love.graphics.setFont(ui.fonts.normal)
-                love.graphics.print(
-                    (comment.by or "anonymous") .. " • " .. utils.timeAgo(comment.time),
-                    PADDING * 2, 
-                    commentY + 10
-                )
-                
-                -- Comment text
-                love.graphics.setColor(colors.storyTitle)
-                love.graphics.setFont(ui.fonts.normal)
-                local formattedText = utils.formatCommentText(comment.text or "")
-                love.graphics.printf(
-                    formattedText,
-                    PADDING * 2,
-                    commentY + 30,
-                    windowWidth - PADDING * 4,
-                    "left"
-                )
+                -- Only render if visible in viewport
+                if (commentY + commentHeight > scrollY) and (commentY < scrollY + windowHeight) then
+                    visibleComments = visibleComments + 1
+                    love.graphics.rectangle("fill", PADDING, commentY, windowWidth - PADDING * 2, commentHeight)
+                    
+                    -- Comment author and time
+                    love.graphics.setColor(colors.button)
+                    love.graphics.setFont(ui.fonts.normal)
+                    love.graphics.print(
+                        (comment.by or "anonymous") .. " • " .. utils.timeAgo(comment.time),
+                        PADDING * 2, 
+                        commentY + 10
+                    )
+                    
+                    -- Comment text
+                    love.graphics.setColor(colors.storyTitle)
+                    love.graphics.setFont(ui.fonts.normal)
+                    local formattedText = utils.formatCommentText(comment.text or "")
+                    love.graphics.printf(
+                        formattedText,
+                        PADDING * 2,
+                        commentY + 30,
+                        windowWidth - PADDING * 4,
+                        "left"
+                    )
+                end
                 
                 commentY = commentY + commentHeight + 10
             end
@@ -228,10 +248,20 @@ function ui.drawStoryDetail(story, comments, scrollY, loading, error)
     
     -- Reset translation
     love.graphics.translate(0, scrollY)
+    
+    local endTime = love.timer.getTime()
+    local duration = endTime - startTime
+    -- Only log if drawing takes significantly longer than a frame (33ms = ~30fps)
+    if duration > 0.033 then
+        utils.logPerformance("UI: Story detail drawing took " .. string.format("%.3f", duration) .. "s" ..
+                           " (" .. #comments .. " comments)")
+    end
 end
 
 -- Calculate the height needed to display a comment
 function ui.calculateCommentHeight(comment, maxWidth)
+    local startTime = love.timer.getTime()
+    
     if not comment or not comment.text then
         return 60 -- Minimum height
     end
@@ -240,7 +270,16 @@ function ui.calculateCommentHeight(comment, maxWidth)
     local font = ui.fonts.normal
     
     local _, textLines = font:getWrap(text, maxWidth)
-    return 40 + #textLines * font:getHeight()
+    local result = 40 + #textLines * font:getHeight()
+    
+    local duration = love.timer.getTime() - startTime
+    -- Only log if taking more than 10ms, which is a significant portion of frame time
+    if duration > 0.01 then
+        utils.logPerformance("UI: Comment height calculation took " .. string.format("%.3f", duration) .. "s for " .. 
+                             (#textLines or 0) .. " lines")
+    end
+    
+    return result
 end
 
 -- Draw a button
@@ -287,6 +326,52 @@ function ui.drawMockDataIndicator()
     love.graphics.setColor(0.9, 0.5, 0.1)
     love.graphics.setFont(ui.fonts.small)
     love.graphics.printf("Using mock data (press F5 to refresh)", 0, 5, windowWidth, "right")
+end
+
+-- Draw a status bar at the bottom of the screen
+function ui.drawStatusBar(state)
+  -- Draw a background for the status bar
+  love.graphics.setColor(0.2, 0.2, 0.2, 0.9)
+  local statusBarHeight = 24
+  local screenWidth = love.graphics.getWidth()
+  local screenHeight = love.graphics.getHeight()
+  love.graphics.rectangle("fill", 0, screenHeight - statusBarHeight, screenWidth, statusBarHeight)
+  
+  -- Draw status text
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setFont(ui.fonts.small)
+  
+  -- Create status message based on app state
+  local statusText = ""
+  
+  -- Show loading status
+  if state.ui.loading then
+    statusText = statusText .. "⟳ Loading... "
+  end
+  
+  -- Show current page info based on screen
+  if state.screen == "stories" then
+    statusText = statusText .. "Page " .. state.pagination.currentPage .. "/" .. state.pagination.totalPages
+    statusText = statusText .. " | Stories: " .. #state.stories
+  elseif state.screen == "story_detail" and state.selectedStory then
+    statusText = statusText .. "Viewing story #" .. state.selectedStory.id
+    statusText = statusText .. " | Comments: " .. #state.comments
+  end
+  
+  -- Show mock data status
+  if state.ui.usingMockData then
+    statusText = statusText .. " | Using mock data"
+  end
+  
+  -- Draw the text with padding
+  love.graphics.print(statusText, 10, screenHeight - statusBarHeight + 5)
+  
+  -- Draw network activity indicator on the right side
+  if state.ui.loading then
+    local indicatorText = "Network active..."
+    local textWidth = ui.fonts.small:getWidth(indicatorText)
+    love.graphics.print(indicatorText, screenWidth - textWidth - 10, screenHeight - statusBarHeight + 5)
+  end
 end
 
 -- Check if a story index was clicked

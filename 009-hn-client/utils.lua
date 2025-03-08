@@ -58,6 +58,19 @@ function utils.formatCommentText(text)
     return text
 end
 
+-- Performance logging function with timestamps
+function utils.logPerformance(message)
+  local time = love.timer.getTime()
+  print(string.format("[%.3fs] %s", time, message))
+end
+
+-- Performance logging function with thresholds
+function utils.logPerformanceIf(condition, message)
+  if condition then
+    utils.logPerformance(message)
+  end
+end
+
 -- Create a simple JSON module for our mock data
 local json = {}
 

@@ -35,6 +35,7 @@ end
 
 -- Fetch top stories with pagination
 function api.fetchTopStories(callback, page)
+  utils.logPerformance("API: Fetching top stories page " .. (page or 1))
   page = page or 1
   
   https.request(urls.topStories, function(data, code, headers)
@@ -107,11 +108,13 @@ end
 
 -- Fetch story details (alias for fetchItem for stories)
 function api.fetchStoryDetails(storyId, callback)
+  utils.logPerformance("API: Fetching story details for ID " .. storyId)
   api.fetchItem(storyId, callback)
 end
 
 -- Fetch story comments
 function api.fetchStoryComments(storyId, callback)
+  utils.logPerformance("API: Fetching comments for story ID " .. storyId)
   api.fetchItem(storyId, function(success, story)
     if not success or not story then
       callback(false, "Failed to fetch story")

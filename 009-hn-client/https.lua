@@ -15,6 +15,8 @@ local state = {
   requestQueue = {}
 }
 
+local utils = require("utils")
+
 -- Try to load external libraries
 local function loadLibraries()
   local socket = require("socket") -- Socket always required
@@ -208,6 +210,8 @@ end
 
 -- Make an HTTP request
 function https.request(url, callback, retryCount)
+  utils.logPerformance("HTTPS: Starting request to " .. url)
+  
   if state.useMockData then
     -- Add mock request to queue with a delay
     table.insert(state.requestQueue, {
@@ -249,6 +253,11 @@ end
 
 -- Process queued requests
 function https.update(dt)
+  -- Log only when there are pending requests
+  if #state.requestQueue > 0 then
+    utils.logPerformance("HTTPS: Processing " .. #state.requestQueue .. " pending requests")
+  end
+  
   -- Process the queue
   local i = 1
   while i <= #state.requestQueue do
