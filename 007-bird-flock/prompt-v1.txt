@@ -1,0 +1,165 @@
+-- Love2D Flocking Simulation - Detailed Implementation Request
+
+-- Goal: Create a complete, working Love2D program that simulates a flock of birds using the Boids algorithm.
+-- The program should be well-structured, commented, and easily modifiable.
+
+-- --------------------------------------------------------------------
+-- 1. Data Structures
+-- --------------------------------------------------------------------
+
+-- Define a table to represent a single bird.
+-- Each bird should have the following properties:
+--   x: (number) x-coordinate of the bird's position.
+--   y: (number) y-coordinate of the bird's position.
+--   velocityX: (number) x-component of the bird's velocity.
+--   velocityY: (number) y-component of the bird's velocity.
+--   maxSpeed: (number) Maximum speed of the bird.
+--   maxForce: (number) Maximum steering force that can be applied.
+--   perceptionRadius: (number) Radius within which the bird considers other birds for flocking behavior.
+
+-- Create a global table called 'birds' to store all bird objects.
+
+-- --------------------------------------------------------------------
+-- 2. Helper Functions (Provide complete implementations)
+-- --------------------------------------------------------------------
+
+-- Function: vectorAdd(v1, v2)
+--   Input: v1, v2 (tables representing 2D vectors: {x = ..., y = ...})
+--   Output: A new table representing the sum of the two vectors.
+--   Purpose: Performs vector addition.
+
+-- Function: vectorSubtract(v1, v2)
+--   Input: v1, v2 (tables representing 2D vectors)
+--   Output: A new table representing the difference (v1 - v2).
+--   Purpose: Performs vector subtraction.
+
+-- Function: vectorMultiply(v, scalar)
+--   Input: v (a table representing a 2D vector), scalar (a number)
+--   Output: A new table representing the vector scaled by the scalar.
+--   Purpose: Performs scalar multiplication of a vector.
+
+-- Function: vectorMagnitude(v)
+--    Input: v (table representing a vector)
+--    Output: Magnitude of the vector
+
+-- Function: vectorNormalize(v)
+--   Input: v (a table representing a 2D vector)
+--   Output: A new table representing the normalized vector (unit vector with the same direction).
+--   Purpose: Normalizes a vector (makes its magnitude equal to 1).
+--   Handle the case where the vector magnitude is zero to avoid division by zero. Return a zero vector in that case.
+
+-- Function: limitVector(v, max)
+-- Input: A vector and a maximum magnitude
+-- Output: Returns a vector that has been limited
+
+-- Function: calculateSeparation(bird, otherBirds)
+--   Input: bird (the current bird), otherBirds (the table of all birds)
+--   Output: A table representing the separation steering force vector.
+--   Purpose: Calculates the steering force to avoid crowding local flockmates.
+--   Implementation:
+--     1. Initialize a steering vector to {x = 0, y = 0}.
+--     2. Initialize a count of nearby birds to 0.
+--     3. Iterate through all other birds in 'otherBirds'.
+--     4. Calculate the distance between the current bird and the other bird.
+--     5. If the distance is greater than 0 and less than the bird's perceptionRadius:
+--        a. Calculate the difference vector (other bird's position - current bird's position).
+--        b. Normalize the difference vector.
+--        c. Divide the normalized difference vector by the distance (to make the force stronger when closer).
+--        d. Add this weighted difference vector to the steering vector.
+--        e. Increment the count of nearby birds.
+--     6. If the count of nearby birds is greater than 0:
+--        a. Divide the steering vector by the count (average the steering forces).
+--        b. Normalize the steering vector.
+--        c. Multiply the steering vector by the bird's maxSpeed.
+--        d. Calculate the steering force: steering = steering - bird.velocity
+--        e. Limit the steering force to the bird's maxForce.
+--     7. Return the steering vector.
+
+-- Function: calculateAlignment(bird, otherBirds)
+--   Input: bird (the current bird), otherBirds (the table of all birds)
+--   Output: A table representing the alignment steering force vector.
+--   Purpose: Calculates the steering force to match the average heading of local flockmates.
+--   Implementation:
+--     1. Initialize a sum vector to {x = 0, y = 0}.
+--     2. Initialize a count of nearby birds to 0.
+--     3. Iterate through all other birds in 'otherBirds'.
+--     4. Calculate the distance between the current bird and the other bird.
+--     5. If the distance is greater than 0 and less than the bird's perceptionRadius:
+--        a. Add the other bird's velocity to the sum vector.
+--        b. Increment the count of nearby birds.
+--     6. If the count of nearby birds is greater than 0:
+--        a. Divide the sum vector by the count (average the velocities).
+--        b. Normalize the sum vector.
+--        c. Multiply the sum vector by the bird's maxSpeed.
+--        d. Calculate the steering force: steering = sum - bird.velocity
+--        e. Limit the steering force to the bird's maxForce.
+--        f.  Return the steering vector
+--     7. Else return a zero vector.
+
+-- Function: calculateCohesion(bird, otherBirds)
+--   Input: bird (the current bird), otherBirds (the table of all birds)
+--   Output: A table representing the cohesion steering force vector.
+--   Purpose: Calculates the steering force to move towards the average position of local flockmates.
+--   Implementation:
+--     1. Initialize a sum vector (representing the perceived center) to {x = 0, y = 0}.
+--     2. Initialize a count of nearby birds to 0.
+--     3. Iterate through all other birds in 'otherBirds'.
+--     4. Calculate the distance between the current bird and the other bird.
+--     5. If the distance is greater than 0 and less than the bird's perceptionRadius:
+--        a. Add the other bird's position to the sum vector.
+--        b. Increment the count of nearby birds.
+--     6. If the count of nearby birds is greater than 0:
+--        a. Divide the sum vector by the count (find the average position).
+--        b.  Calculate the desired velocity vector to reach that position: desired = sum - bird.position
+--        c. Normalize the desired velocity.
+--        d. Multiply the desired velocity by bird.maxSpeed.
+--        e. Calculate steering: steer = desired - bird.velocity.
+--        f. Limit the steering force to the bird's maxForce.
+--        g. Return the steering vector.
+--     7. Else return a zero vector.
+
+-- --------------------------------------------------------------------
+-- 3. Love2D Callbacks (Provide complete implementations)
+-- --------------------------------------------------------------------
+
+function love.load()
+  -- Initialize the 'birds' table with 50 birds.
+  -- For each bird:
+  --   - Set its x and y position randomly within the screen bounds (use love.graphics.getWidth() and love.graphics.getHeight()).
+  --   - Set its velocityX and velocityY randomly between -50 and 50.
+  --   - Set its maxSpeed to 100.
+  --   - Set its maxForce to 5.
+  --   - Set its perceptionRadius to 50.
+end
+
+function love.update(dt)
+  -- Update the position and velocity of each bird in the 'birds' table.
+  -- For each bird:
+  --   1. Calculate the separation, alignment, and cohesion forces using the helper functions.
+  --   2. Apply weights to the forces:
+  --      - Separation weight: 2.0
+  --      - Alignment weight: 1.0
+  --      - Cohesion weight: 1.0
+  --   3. Calculate the total acceleration by adding the weighted forces.
+  --   4. Update the bird's velocity by adding the acceleration (multiplied by dt).
+  --   5. Limit the bird's velocity to its maxSpeed using vector normalization and scaling if necessary.
+  --   6. Update the bird's position by adding its velocity (multiplied by dt).
+  --   7. Implement wrap-around boundary conditions:
+  --      - If the bird's x position goes beyond the screen width, wrap it around to the left edge.
+  --      - If the bird's x position goes beyond the left edge, wrap it around to the right edge.
+  --      - Do the same for the y position and the screen height.
+
+end
+
+function love.draw()
+  -- Draw each bird as a filled triangle.
+  -- For each bird:
+    -- 1. Calculate the angle of the bird's velocity using math.atan2(bird.velocityY, bird.velocityX).
+    -- 2. Use love.graphics.polygon to draw a filled triangle:
+    --    - The triangle should point in the direction of the bird's velocity.
+    --    - Use the calculated angle to rotate the triangle points.
+    --    - A suggested size is a triangle with one point 10 pixels ahead of the bird's center and two points 5 pixels behind and to the sides.
+    --    - Example points (before rotation):
+    --        (bird.x + 10, bird.y), (bird.x - 5, bird.y + 5), (bird.x - 5, bird.y - 5)
+    -- 3. Set a different color using for example: love.graphics.setColor(1, 0, 0) -- red
+end
