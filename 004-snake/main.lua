@@ -12,6 +12,8 @@ local highScore = 0
 local leaderboard = {}
 local playerName = ""
 local enteringName = false
+local foodColor = {1, 0, 0}
+local snakeColors = {}
 
 function love.load()
     love.window.setMode(boardWidth * gridSize, boardHeight * gridSize)
@@ -24,6 +26,11 @@ function resetGame()
         {x = 4, y = 5},
         {x = 3, y = 5}
     }
+    snakeColors = {
+        {1, 1, 1},
+        {1, 1, 1},
+        {1, 1, 1}
+    }
     direction = 'right'
     gameOver = false
     score = 0
@@ -35,6 +42,7 @@ end
 function placeFood()
     food.x = love.math.random(1, boardWidth)
     food.y = love.math.random(1, boardHeight)
+    foodColor = {love.math.random(), love.math.random(), love.math.random()}
 end
 
 function love.update(dt)
@@ -77,6 +85,7 @@ function moveSnake()
     table.insert(snake, 1, head)
 
     if head.x == food.x and head.y == food.y then
+        table.insert(snakeColors, 1, {foodColor[1], foodColor[2], foodColor[3]})
         placeFood()
         score = score + 1
         if score > highScore then
@@ -84,6 +93,7 @@ function moveSnake()
         end
     else
         table.remove(snake)
+        table.remove(snakeColors)
     end
 end
 
@@ -114,11 +124,14 @@ function love.draw()
         return
     end
 
-    for _, segment in ipairs(snake) do
+    for i, segment in ipairs(snake) do
+        love.graphics.setColor(snakeColors[i] or {1, 1, 1})
         love.graphics.rectangle('fill', (segment.x - 1) * gridSize, (segment.y - 1) * gridSize, gridSize, gridSize)
     end
 
+    love.graphics.setColor(foodColor)
     love.graphics.rectangle('fill', (food.x - 1) * gridSize, (food.y - 1) * gridSize, gridSize, gridSize)
+    love.graphics.setColor(1, 1, 1)
     love.graphics.print("Score: " .. score, 10, 10)
     love.graphics.print("High Score: " .. highScore, 10, 30)
 end
