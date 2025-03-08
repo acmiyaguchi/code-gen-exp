@@ -29,7 +29,9 @@ local state = {
     scrollY = 0,
     refreshTimer = 0,
     autoRefreshInterval = 300, -- 5 minutes in seconds
-    usingMockData = false  -- Track if we're using mock data
+    usingMockData = false,  -- Track if we're using mock data
+    currentPage = 1,
+    totalPages = 1
 }
 
 function love.load()
@@ -51,17 +53,33 @@ function love.load()
     loadTopStories()
 end
 
-function loadTopStories()
+function loadTopStories(page)
     state.loading = true
     state.error = nil
-    state.scrollY = 0
+    
+    if page == 1 then
+        state.scrollY = 0  -- Only reset scroll position for first page
+    end
+    
     state.usingMockData = false
     
     api.fetchTopStories(function(success, result)
         state.loading = false
         
         if success then
-            state.stories = result
+            if page == 1 then
+                state.stories = result.items
+            else
+                -- Append new stories to existing ones
+                for _, story in ipairs(result.items) do
+                    table.insert(state.stories, story)
+                end
+            end
+            
+            -- Update pagination state
+            state.currentPage = result.page
+            state.totalPages = result.totalPages
+            
             -- Check if we're using mock data (for user feedback)
             state.usingMockData = https.isUsingMockData()
         else
@@ -78,7 +96,9 @@ function loadTopStories()
                 api.fetchTopStories(function(mockSuccess, mockResult)
                     state.loading = false
                     if mockSuccess then
-                        state.stories = mockResult
+                        state.stories = mockResult.items
+                        state.currentPage = mockResult.page
+                        state.totalPages = mockResult.totalPages
                         state.usingMockData = true
                     else
                         state.error = "Failed to load stories: " .. (mockResult or "Unknown error")
@@ -89,7 +109,13 @@ function loadTopStories()
                 print("Press F5 to switch to mock data mode")
             end
         end
-    end)
+    end, page or state.currentPage)
+end
+
+function loadNextPage()
+    if state.currentPage < state.totalPages then
+        loadTopStories(state.currentPage + 1)
+    end
 end
 
 function loadStoryDetails(storyId)
@@ -141,7 +167,7 @@ end
 
 function love.draw()
     if state.screen == "stories" then
-        ui.drawStoryList(state.stories, state.scrollY, state.loading, state.error)
+        ui.drawStoryList(state.stories, state.scrollY, state.loading, state.error, state.currentPage, state.totalPages)
     elseif state.screen == "story_detail" then
         ui.drawStoryDetail(state.selectedStory, state.comments, state.scrollY, state.loading, state.error)
     end
@@ -176,6 +202,11 @@ function love.mousepressed(x, y, button)
             -- Check if refresh button was clicked
             if ui.isRefreshButtonClicked(x, y) then
                 loadTopStories()
+            end
+            
+            -- Check if load more stories button was clicked
+            if ui.isLoadMoreStoriesButtonClicked(x, y, state.scrollY, #state.stories) then
+                loadNextPage()
             end
         elseif state.screen == "story_detail" then
             -- Check if back button was clicked
@@ -220,6 +251,11 @@ function love.keypressed(key)
             loadTopStories()
         elseif state.screen == "story_detail" and state.selectedStory then
             loadStoryComments(state.selectedStory.id)
+        end
+    elseif key == "down" and love.keyboard.isDown("lctrl") then
+        -- Load next page of stories
+        if state.screen == "stories" then
+            loadNextPage()
         end
     elseif key == "f5" then
         -- Switch to mock data mode

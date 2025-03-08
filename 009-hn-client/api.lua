@@ -10,11 +10,13 @@ local TOP_STORIES_URL = BASE_URL .. "topstories.json"
 local ITEM_URL = BASE_URL .. "item/"
 
 -- Configuration
-local NUMBER_OF_STORIES = 30  -- Number of top stories to fetch
+local STORIES_PER_PAGE = 10  -- Reduced from 30 to 10 stories per page
 local MAX_COMMENTS = 20       -- Maximum number of comments to fetch initially
 
--- Fetch top stories from Hacker News
-function api.fetchTopStories(callback)
+-- Fetch top stories from Hacker News with pagination
+function api.fetchTopStories(callback, page)
+    page = page or 1  -- Default to first page
+    
     https.request(TOP_STORIES_URL, function(data, code, headers)
         if code ~= 200 then
             callback(false, "HTTP error: " .. tostring(code))
@@ -27,12 +29,17 @@ function api.fetchTopStories(callback)
             return
         end
         
-        -- Only fetch the top N stories
+        -- Calculate pagination bounds
+        local startIndex = (page - 1) * STORIES_PER_PAGE + 1
+        local endIndex = math.min(startIndex + STORIES_PER_PAGE - 1, #storyIds)
+        local totalPages = math.ceil(#storyIds / STORIES_PER_PAGE)
+        
+        -- Only fetch the stories for current page
         local stories = {}
         local storiesLoaded = 0
-        local totalToLoad = math.min(NUMBER_OF_STORIES, #storyIds)
+        local totalToLoad = endIndex - startIndex + 1
         
-        for i = 1, totalToLoad do
+        for i = startIndex, endIndex do
             local id = storyIds[i]
             api.fetchItem(id, function(success, item)
                 if success and item and item.type == "story" then
@@ -43,7 +50,15 @@ function api.fetchTopStories(callback)
                 if storiesLoaded == totalToLoad then
                     -- Sort stories by score
                     table.sort(stories, function(a, b) return (a.score or 0) > (b.score or 0) end)
-                    callback(true, stories)
+                    
+                    -- Return pagination info along with stories
+                    callback(true, {
+                        items = stories,
+                        page = page,
+                        totalPages = totalPages,
+                        hasNextPage = page < totalPages,
+                        hasPrevPage = page > 1
+                    })
                 end
             end)
         end

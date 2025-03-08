@@ -42,7 +42,7 @@ function ui.loadFonts()
 end
 
 -- Draw the story list screen
-function ui.drawStoryList(stories, scrollY, loading, error)
+function ui.drawStoryList(stories, scrollY, loading, error, currentPage, totalPages)
     local windowWidth, windowHeight = love.graphics.getDimensions()
     
     -- Draw header
@@ -97,10 +97,31 @@ function ui.drawStoryList(stories, scrollY, loading, error)
         end
         
         love.graphics.translate(0, scrollY)
+        
+        -- After drawing all stories, add load more button if not on last page
+        if not loading and currentPage < totalPages then
+            local y = 60 + #stories * STORY_HEIGHT
+            love.graphics.translate(0, -scrollY)
+            ui.drawButton("Load More Stories", windowWidth / 2 - 80, y + 10, 160, 40)
+            love.graphics.translate(0, scrollY)
+        end
     elseif not loading and not error then
         love.graphics.setColor(colors.storyMeta)
         love.graphics.setFont(ui.fonts.normal)
         love.graphics.printf("No stories found", 0, 100, windowWidth, "center")
+    end
+    
+    -- Draw pagination info if there are multiple pages
+    if totalPages > 1 then
+        love.graphics.setColor(colors.storyMeta)
+        love.graphics.setFont(ui.fonts.small)
+        love.graphics.printf(
+            "Page " .. currentPage .. " of " .. totalPages, 
+            0, 
+            windowHeight - 20, 
+            windowWidth, 
+            "center"
+        )
     end
 end
 
@@ -290,6 +311,15 @@ function ui.isLoadMoreCommentsButtonClicked(x, y, commentCount)
     local windowWidth, _ = love.graphics.getDimensions()
     local btnX = windowWidth / 2 - 80
     local btnY = 120 + 70 + 40 + commentCount * 120 + 10
+    
+    return x >= btnX and x <= btnX + 160 and y >= btnY and y <= btnY + 40
+end
+
+-- Check if load more stories button was clicked
+function ui.isLoadMoreStoriesButtonClicked(x, y, scrollY, storiesCount)
+    local windowWidth, _ = love.graphics.getDimensions()
+    local btnX = windowWidth / 2 - 80
+    local btnY = 60 + storiesCount * STORY_HEIGHT + 10 - scrollY
     
     return x >= btnX and x <= btnX + 160 and y >= btnY and y <= btnY + 40
 end
