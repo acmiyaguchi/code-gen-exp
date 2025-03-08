@@ -15,7 +15,6 @@ The Othello Interactive Reader is a Love2D application that presents Shakespeare
   - Mouse wheel for scrolling
 
 ### 2. Visual Design
-- **Background**: Subtle animated shader background using Perlin noise
 - **Text Bubbles**: Text is organized into digestible "bubbles" with rounded corners
 - **Color Scheme**: Dark theme with readable text and subtle highlights
 - **Typography**: Clear hierarchical font sizing for different text elements
@@ -34,7 +33,6 @@ The Othello Interactive Reader is a Love2D application that presents Shakespeare
 3. **menu.lua**: Menu interface implementation
 4. **reader.lua**: Reading view implementation
 5. **parser.lua**: Text processing functions
-6. **shaders/background.glsl**: Procedural background shader
 
 ### Data Flow
 1. The application loads and parses the text file on startup
@@ -63,9 +61,8 @@ The application maintains a global state object containing:
 - Displays current act and scene information
 
 ## Visual Style
-- **Colors**: Dark blues and purples for background with white text
+- **Colors**: Dark blue background with white text for optimal readability
 - **UI Elements**: Rounded corners for all interactive elements
-- **Animation**: Subtle background animation for visual interest
 - **Layout**: Centered, readable text with appropriate margins
 
 ## Implementation Notes

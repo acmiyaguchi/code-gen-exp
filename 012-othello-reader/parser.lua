@@ -103,48 +103,97 @@ function Parser.parse_play_file(filename)
 end
 
 -- Processes a scene text into chunks for display as bubbles
+-- Improved to ensure a character's complete speech is in one bubble
 function Parser.process_scene_into_bubbles(scene_text, max_chars_per_bubble)
-    max_chars_per_bubble = max_chars_per_bubble or 500
+    max_chars_per_bubble = max_chars_per_bubble or 1500  -- Increased to allow for longer speeches
     local bubbles = {}
     
-    -- First, split the text into paragraphs
-    local paragraphs = {}
-    for para in scene_text:gmatch("([^\n]+)") do
-        if #para > 0 then
-            table.insert(paragraphs, para)
+    -- First, split the text into lines
+    local lines = {}
+    for line in scene_text:gmatch("([^\r\n]+)") do
+        if #line > 0 then
+            table.insert(lines, line)
         end
     end
     
-    local current_bubble = {}
-    local current_length = 0
-    
-    for _, para in ipairs(paragraphs) do
-        -- If adding this paragraph would exceed max_chars, create a new bubble
-        if current_length + #para > max_chars_per_bubble and #current_bubble > 0 then
-            table.insert(bubbles, table.concat(current_bubble, "\n"))
-            current_bubble = {}
-            current_length = 0
+    -- Find all character names for better recognition
+    local character_names = {}
+    local i = 1
+    while i <= #lines do
+        local line = lines[i]
+        local name = line:match("^%s*([A-Z][A-Z%s]+)%s*$")
+        if name and #name < 30 then
+            character_names[name] = true
         end
-        
-        -- Add the paragraph to the current bubble
-        table.insert(current_bubble, para)
-        current_length = current_length + #para
-        
-        -- Check if paragraph is a character name or stage direction
-        -- If so, start a new bubble after the next paragraph
-        if para:match("^%s*[A-Z]+%s*$") or para:match("^%s*%[") then
-            -- Keep collecting until we have a meaningful chunk
-            if current_length > 200 then
-                table.insert(bubbles, table.concat(current_bubble, "\n"))
-                current_bubble = {}
-                current_length = 0
+        i = i + 1
+    end
+    
+    -- Special character name patterns that might be mixed case
+    local special_patterns = {
+        "^%s*Enter ",
+        "^%s*Exit ",
+        "^%s*Re%-enter ",
+        "^%s*Exeunt",
+        "^%s*%[",
+        "^%s*To ",
+        "^%s*Scene:"
+    }
+    
+    -- Function to check if a line is a stage direction
+    local function is_stage_direction(line)
+        for _, pattern in ipairs(special_patterns) do
+            if line:match(pattern) then
+                return true
             end
         end
+        return line:match("%]%s*$") ~= nil
     end
     
-    -- Add the last bubble if it's not empty
-    if #current_bubble > 0 then
-        table.insert(bubbles, table.concat(current_bubble, "\n"))
+    -- Group content by character or stage direction
+    local i = 1
+    while i <= #lines do
+        local line = lines[i]
+        
+        -- Check if this is a stage direction
+        if is_stage_direction(line) then
+            -- Add stage direction as its own bubble
+            table.insert(bubbles, line)
+            i = i + 1
+        -- Check if this is a character name
+        elseif line:match("^%s*([A-Z][A-Z%s]+)%s*$") and character_names[line:match("^%s*([A-Z][A-Z%s]+)%s*$")] then
+            local current_character = line:match("^%s*([A-Z][A-Z%s]+)%s*$")
+            local speech_lines = {line}  -- Start with character name
+            local current_length = #line
+            i = i + 1
+            
+            -- Collect all lines until we hit another character name or stage direction
+            while i <= #lines do
+                local next_line = lines[i]
+                
+                -- Stop if we hit another character name or stage direction
+                if (next_line:match("^%s*([A-Z][A-Z%s]+)%s*$") and character_names[next_line:match("^%s*([A-Z][A-Z%s]+)%s*$")]) 
+                    or is_stage_direction(next_line) then
+                    break
+                end
+                
+                -- Add this line to the current speech
+                table.insert(speech_lines, next_line)
+                current_length = current_length + #next_line
+                i = i + 1
+                
+                -- Break into multiple bubbles if speech becomes too long
+                if current_length > max_chars_per_bubble then
+                    break
+                end
+            end
+            
+            -- Add complete speech bubble
+            table.insert(bubbles, table.concat(speech_lines, "\n"))
+        else
+            -- Other text (scene descriptions, etc.)
+            table.insert(bubbles, line)
+            i = i + 1
+        end
     end
     
     return bubbles

@@ -10,8 +10,6 @@ local state = {
     current_scene = 1,
 }
 
-local background_shader
-
 function love.load()
     -- Set default font and window title
     love.window.setTitle("Othello Interactive Reader")
@@ -27,9 +25,6 @@ function love.load()
         return
     end
     
-    -- Load background shader
-    background_shader = love.graphics.newShader("shaders/background.glsl")
-    
     -- Parse the play data
     state.play_data = Parser.parse_play_file("pg1531.txt")
     
@@ -42,9 +37,6 @@ function love.load()
 end
 
 function love.update(dt)
-    -- Update the shader with time
-    background_shader:send("time", love.timer.getTime())
-    
     if state.mode == "menu" then
         Menu.update(dt)
     elseif state.mode == "reader" then
@@ -53,10 +45,10 @@ function love.update(dt)
 end
 
 function love.draw()
-    -- Draw background
-    love.graphics.setShader(background_shader)
+    -- Draw simple background
+    love.graphics.setColor(UI.colors.background)
     love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
-    love.graphics.setShader()
+    love.graphics.setColor(1, 1, 1, 1)  -- Reset color
     
     if state.mode == "menu" then
         Menu.draw()
