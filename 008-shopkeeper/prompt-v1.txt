@@ -1,0 +1,12 @@
+"Smart" Shopkeeper in an RPG:
+
+    Concept: A shopkeeper that doesn't just stand still, but moves around their shop, greets the player, reacts to the player's actions (browsing, buying, stealing!), and perhaps even has a daily routine.
+    Love2D Implementation:
+        AI: FSM (similar to the guard, but with different states):
+            Idle: Move around the shop, tidy up, etc.
+            Greeting: Greet the player when they approach.
+            Browsing: React to the player looking at items (displaying information).
+            Transaction: Handle buying/selling.
+            Angry: React to theft.
+        "Life": Shopkeeper animations, dialogue system (text boxes), shop environment with interactive items.
+        AI Showcase: Demonstrates AI creating a more believable and engaging NPC.
