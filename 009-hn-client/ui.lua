@@ -281,6 +281,14 @@ function ui.drawErrorMessage(message)
     love.graphics.printf(message, PADDING, windowHeight - 35, windowWidth - PADDING * 2, "center")
 end
 
+-- Draw mock data indicator
+function ui.drawMockDataIndicator()
+    local windowWidth = love.graphics.getWidth()
+    love.graphics.setColor(0.9, 0.5, 0.1)
+    love.graphics.setFont(ui.fonts.small)
+    love.graphics.printf("Using mock data (press F5 to refresh)", 0, 5, windowWidth, "right")
+end
+
 -- Check if a story index was clicked
 function ui.getStoryIndexAtPosition(y)
     local index = math.floor((y - 60) / STORY_HEIGHT) + 1

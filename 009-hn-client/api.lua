@@ -1,139 +1,157 @@
--- Hacker News API interface
+-- Hacker News API interface (refactored)
 
 local api = {}
 local https = require("https")
 local utils = require("utils")
 
--- Base URLs for Hacker News API
-local BASE_URL = "https://hacker-news.firebaseio.com/v0/"
-local TOP_STORIES_URL = BASE_URL .. "topstories.json"
-local ITEM_URL = BASE_URL .. "item/"
+-- API configuration
+local config = {
+  baseUrl = "https://hacker-news.firebaseio.com/v0/",
+  storiesPerPage = 10,
+  maxComments = 20
+}
 
--- Configuration
-local STORIES_PER_PAGE = 10  -- Reduced from 30 to 10 stories per page
-local MAX_COMMENTS = 20       -- Maximum number of comments to fetch initially
+-- URL helpers
+local urls = {
+  topStories = config.baseUrl .. "topstories.json",
+  item = function(id) return config.baseUrl .. "item/" .. id .. ".json" end
+}
 
--- Fetch top stories from Hacker News with pagination
+-- Generic error handler for API responses
+local function handleApiResponse(data, code, headers, callback)
+  if code ~= 200 then
+    callback(false, "HTTP error: " .. tostring(code))
+    return false
+  end
+  
+  local success, result = pcall(function() return utils.json.decode(data) end)
+  if not success or type(result) ~= "table" then
+    callback(false, "Failed to parse API response")
+    return false
+  end
+  
+  return result
+end
+
+-- Fetch top stories with pagination
 function api.fetchTopStories(callback, page)
-    page = page or 1  -- Default to first page
+  page = page or 1
+  
+  https.request(urls.topStories, function(data, code, headers)
+    local storyIds = handleApiResponse(data, code, headers, callback)
+    if not storyIds then return end
     
-    https.request(TOP_STORIES_URL, function(data, code, headers)
-        if code ~= 200 then
-            callback(false, "HTTP error: " .. tostring(code))
-            return
-        end
-        
-        local success, storyIds = pcall(function() return utils.json.decode(data) end)
-        if not success or type(storyIds) ~= "table" then
-            callback(false, "Failed to parse response")
-            return
-        end
-        
-        -- Calculate pagination bounds
-        local startIndex = (page - 1) * STORIES_PER_PAGE + 1
-        local endIndex = math.min(startIndex + STORIES_PER_PAGE - 1, #storyIds)
-        local totalPages = math.ceil(#storyIds / STORIES_PER_PAGE)
-        
-        -- Only fetch the stories for current page
+    -- Calculate pagination
+    local startIndex = (page - 1) * config.storiesPerPage + 1
+    local endIndex = math.min(startIndex + config.storiesPerPage - 1, #storyIds)
+    local totalPages = math.ceil(#storyIds / config.storiesPerPage)
+    
+    -- Batch fetch stories for this page
+    api.batchFetchItems(
+      storyIds, 
+      startIndex, 
+      endIndex, 
+      function(items) 
+        -- Filter out non-stories
         local stories = {}
-        local storiesLoaded = 0
-        local totalToLoad = endIndex - startIndex + 1
-        
-        for i = startIndex, endIndex do
-            local id = storyIds[i]
-            api.fetchItem(id, function(success, item)
-                if success and item and item.type == "story" then
-                    stories[#stories + 1] = item
-                end
-                
-                storiesLoaded = storiesLoaded + 1
-                if storiesLoaded == totalToLoad then
-                    -- Sort stories by score
-                    table.sort(stories, function(a, b) return (a.score or 0) > (b.score or 0) end)
-                    
-                    -- Return pagination info along with stories
-                    callback(true, {
-                        items = stories,
-                        page = page,
-                        totalPages = totalPages,
-                        hasNextPage = page < totalPages,
-                        hasPrevPage = page > 1
-                    })
-                end
-            end)
+        for _, item in ipairs(items) do
+          if item and item.type == "story" then
+            table.insert(stories, item)
+          end
         end
-    end)
+        
+        -- Sort by score
+        table.sort(stories, function(a, b) return (a.score or 0) > (b.score or 0) end)
+        
+        -- Return with pagination info
+        callback(true, {
+          items = stories,
+          page = page,
+          totalPages = totalPages,
+          hasNextPage = page < totalPages,
+          hasPrevPage = page > 1
+        })
+      end
+    )
+  end)
 end
 
--- Fetch individual item (story or comment)
+-- Fetch a batch of items by ID range
+function api.batchFetchItems(itemIds, startIndex, endIndex, callback)
+  local items = {}
+  local loaded = 0
+  local toLoad = endIndex - startIndex + 1
+  
+  for i = startIndex, endIndex do
+    local id = itemIds[i]
+    api.fetchItem(id, function(success, item)
+      if success and item then
+        items[#items + 1] = item
+      end
+      
+      loaded = loaded + 1
+      if loaded == toLoad then
+        callback(items)
+      end
+    end)
+  end
+end
+
+-- Fetch individual item (story/comment)
 function api.fetchItem(id, callback)
-    local url = ITEM_URL .. id .. ".json"
-    https.request(url, function(data, code, headers)
-        if code ~= 200 then
-            callback(false, "HTTP error: " .. tostring(code))
-            return
-        end
-        
-        local success, item = pcall(function() return utils.json.decode(data) end)
-        if not success or type(item) ~= "table" then
-            callback(false, "Failed to parse item data")
-            return
-        end
-        
-        callback(true, item)
-    end)
+  https.request(urls.item(id), function(data, code, headers)
+    local item = handleApiResponse(data, code, headers, callback)
+    if item then callback(true, item) end
+  end)
 end
 
--- Fetch story details
+-- Fetch story details (alias for fetchItem for stories)
 function api.fetchStoryDetails(storyId, callback)
-    api.fetchItem(storyId, callback)
+  api.fetchItem(storyId, callback)
 end
 
 -- Fetch story comments
 function api.fetchStoryComments(storyId, callback)
-    api.fetchItem(storyId, function(success, story)
-        if not success or not story then
-            callback(false, "Failed to fetch story")
-            return
+  api.fetchItem(storyId, function(success, story)
+    if not success or not story then
+      callback(false, "Failed to fetch story")
+      return
+    end
+    
+    -- Get comment IDs
+    local commentIds = story.kids or {}
+    if #commentIds == 0 then
+      callback(true, {})
+      return
+    end
+    
+    -- Limit comments
+    local commentsToFetch = {}
+    for i = 1, math.min(config.maxComments, #commentIds) do
+      table.insert(commentsToFetch, commentIds[i])
+    end
+    
+    -- Batch fetch comments
+    api.batchFetchItems(
+      commentsToFetch, 
+      1, 
+      #commentsToFetch, 
+      function(comments)
+        -- Filter out deleted/dead comments
+        local validComments = {}
+        for _, comment in ipairs(comments) do
+          if comment and not comment.deleted and not comment.dead then
+            table.insert(validComments, comment)
+          end
         end
         
-        local comments = {}
-        local commentsToFetch = {}
+        -- Sort by timestamp (newest first)
+        table.sort(validComments, function(a, b) return (a.time or 0) > (b.time or 0) end)
         
-        -- Get comment IDs from the story
-        if story.kids and type(story.kids) == "table" then
-            for i, commentId in ipairs(story.kids) do
-                if i <= MAX_COMMENTS then
-                    table.insert(commentsToFetch, commentId)
-                else
-                    break
-                end
-            end
-        end
-        
-        if #commentsToFetch == 0 then
-            callback(true, {})
-            return
-        end
-        
-        local commentsLoaded = 0
-        
-        for _, commentId in ipairs(commentsToFetch) do
-            api.fetchItem(commentId, function(success, comment)
-                commentsLoaded = commentsLoaded + 1
-                
-                if success and comment and not comment.deleted and not comment.dead then
-                    table.insert(comments, comment)
-                end
-                
-                if commentsLoaded == #commentsToFetch then
-                    -- Sort comments by creation time
-                    table.sort(comments, function(a, b) return (a.time or 0) > (b.time or 0) end)
-                    callback(true, comments)
-                end
-            end)
-        end
-    end)
+        callback(true, validComments)
+      end
+    )
+  end)
 end
 
 return api
