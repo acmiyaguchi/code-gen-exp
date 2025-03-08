@@ -17,6 +17,34 @@ local urls = {
   item = function(id) return config.baseUrl .. "item/" .. id .. ".json" end
 }
 
+-- Cache for loaded items
+local cache = {
+  stories = {},
+  comments = {},
+  ttl = 300  -- Cache time-to-live in seconds
+}
+
+-- Check cache before fetching an item
+local function getCachedItem(id)
+  local item = cache.stories[id] or cache.comments[id]
+  if item and os.time() - (item._cacheTime or 0) < cache.ttl then
+    return item
+  end
+  return nil
+end
+
+-- Store an item in the appropriate cache
+local function cacheItem(item)
+  if not item or not item.id then return end
+  
+  item._cacheTime = os.time()
+  if item.type == "story" then
+    cache.stories[item.id] = item
+  elseif item.type == "comment" then
+    cache.comments[item.id] = item
+  end
+end
+
 -- Generic error handler for API responses
 local function handleApiResponse(data, code, headers, callback)
   if code ~= 200 then
@@ -100,9 +128,20 @@ end
 
 -- Fetch individual item (story/comment)
 function api.fetchItem(id, callback)
+  -- Check cache first
+  local cachedItem = getCachedItem(id)
+  if cachedItem then
+    utils.logPerformance("API: Item " .. id .. " loaded from cache")
+    callback(true, cachedItem)
+    return
+  end
+
   https.request(urls.item(id), function(data, code, headers)
     local item = handleApiResponse(data, code, headers, callback)
-    if item then callback(true, item) end
+    if item then 
+      cacheItem(item)
+      callback(true, item) 
+    end
   end)
 end
 
@@ -112,49 +151,63 @@ function api.fetchStoryDetails(storyId, callback)
   api.fetchItem(storyId, callback)
 end
 
+-- Helper to load comments by ID list
+local function loadCommentsByIds(commentIds, callback)
+  if #commentIds == 0 then
+    callback(true, {})
+    return
+  end
+  
+  -- Limit comments
+  local commentsToFetch = {}
+  for i = 1, math.min(config.maxComments, #commentIds) do
+    table.insert(commentsToFetch, commentIds[i])
+  end
+  
+  utils.logPerformance("API: Fetching " .. #commentsToFetch .. " comments")
+  
+  -- Batch fetch comments
+  api.batchFetchItems(
+    commentsToFetch, 
+    1, 
+    #commentsToFetch, 
+    function(comments)
+      -- Filter out deleted/dead comments
+      local validComments = {}
+      for _, comment in ipairs(comments) do
+        if comment and not comment.deleted and not comment.dead then
+          table.insert(validComments, comment)
+        end
+      end
+      
+      -- Sort by timestamp (newest first)
+      table.sort(validComments, function(a, b) return (a.time or 0) > (b.time or 0) end)
+      
+      callback(true, validComments)
+    end
+  )
+end
+
 -- Fetch story comments
 function api.fetchStoryComments(storyId, callback)
   utils.logPerformance("API: Fetching comments for story ID " .. storyId)
-  api.fetchItem(storyId, function(success, story)
-    if not success or not story then
-      callback(false, "Failed to fetch story")
-      return
-    end
-    
-    -- Get comment IDs
-    local commentIds = story.kids or {}
-    if #commentIds == 0 then
-      callback(true, {})
-      return
-    end
-    
-    -- Limit comments
-    local commentsToFetch = {}
-    for i = 1, math.min(config.maxComments, #commentIds) do
-      table.insert(commentsToFetch, commentIds[i])
-    end
-    
-    -- Batch fetch comments
-    api.batchFetchItems(
-      commentsToFetch, 
-      1, 
-      #commentsToFetch, 
-      function(comments)
-        -- Filter out deleted/dead comments
-        local validComments = {}
-        for _, comment in ipairs(comments) do
-          if comment and not comment.deleted and not comment.dead then
-            table.insert(validComments, comment)
-          end
-        end
-        
-        -- Sort by timestamp (newest first)
-        table.sort(validComments, function(a, b) return (a.time or 0) > (b.time or 0) end)
-        
-        callback(true, validComments)
+  
+  -- Check if we already have the story in cache to avoid re-fetching
+  local cachedStory = cache.stories[storyId]
+  
+  if cachedStory and cachedStory.kids then
+    utils.logPerformance("API: Using cached story for comments")
+    loadCommentsByIds(cachedStory.kids, callback)
+  else
+    api.fetchItem(storyId, function(success, story)
+      if not success or not story then
+        callback(false, "Failed to fetch story")
+        return
       end
-    )
-  end)
+      
+      loadCommentsByIds(story.kids or {}, callback)
+    end)
+  end
 end
 
 return api

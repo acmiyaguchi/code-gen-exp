@@ -2,6 +2,7 @@
 
 local ui = {}
 local utils = require("utils")
+local https = require("https")  -- Import the https module
 
 -- UI constants
 local PADDING = 10
@@ -344,9 +345,15 @@ function ui.drawStatusBar(state)
   -- Create status message based on app state
   local statusText = ""
   
-  -- Show loading status
+  -- Get network request stats
+  local requestStats = https.getRequestStats()
+  
+  -- Show loading status with request details
   if state.ui.loading then
     statusText = statusText .. "⟳ Loading... "
+    if requestStats.active > 0 then
+      statusText = statusText .. "(" .. requestStats.active .. " requests) "
+    end
   end
   
   -- Show current page info based on screen
@@ -366,9 +373,15 @@ function ui.drawStatusBar(state)
   -- Draw the text with padding
   love.graphics.print(statusText, 10, screenHeight - statusBarHeight + 5)
   
-  -- Draw network activity indicator on the right side
-  if state.ui.loading then
-    local indicatorText = "Network active..."
+  -- Show network activity with more detailed info
+  if state.ui.loading or requestStats.active > 0 then
+    local indicatorText
+    if requestStats.active > 0 then
+      indicatorText = requestStats.active .. " requests active..."
+    else
+      indicatorText = "Processing data..."
+    end
+    
     local textWidth = ui.fonts.small:getWidth(indicatorText)
     love.graphics.print(indicatorText, screenWidth - textWidth - 10, screenHeight - statusBarHeight + 5)
   end

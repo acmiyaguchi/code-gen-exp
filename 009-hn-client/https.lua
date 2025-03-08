@@ -12,7 +12,13 @@ local config = {
 -- State
 local state = {
   useMockData = false,
-  requestQueue = {}
+  requestQueue = {},
+  stats = {
+    activeRequests = 0,
+    totalRequests = 0,
+    completedRequests = 0,
+    failedRequests = 0
+  }
 }
 
 local utils = require("utils")
@@ -212,6 +218,10 @@ end
 function https.request(url, callback, retryCount)
   utils.logPerformance("HTTPS: Starting request to " .. url)
   
+  -- Update stats
+  state.stats.totalRequests = state.stats.totalRequests + 1
+  state.stats.activeRequests = state.stats.activeRequests + 1
+  
   if state.useMockData then
     -- Add mock request to queue with a delay
     table.insert(state.requestQueue, {
@@ -224,24 +234,32 @@ function https.request(url, callback, retryCount)
     return
   end
   
+  -- Wrap the original callback to track completion
+  local wrappedCallback = function(data, code, headers, errorMsg)
+    state.stats.activeRequests = state.stats.activeRequests - 1
+    
+    if code == 200 then
+      state.stats.completedRequests = state.stats.completedRequests + 1
+      callback(data, code, headers)
+    else
+      state.stats.failedRequests = state.stats.failedRequests + 1
+      
+      -- If request failed and we haven't reached max retries yet, try again
+      if (retryCount or 0) < config.maxRetries then
+        print("Request failed: " .. (errorMsg or "Unknown error") .. " - Retrying...")
+        https.request(url, callback, (retryCount or 0) + 1)
+      else
+        -- If max retries reached, switch to mock mode
+        print("Max retries reached. Falling back to mock data.")
+        state.useMockData = true
+        https.request(url, callback, 0)
+      end
+    end
+  end
+
   -- Try to make a real HTTP request
   local ok, err = pcall(function()
-    makeRealRequest(url, function(data, code, headers, errorMsg)
-      if code == 200 then
-        callback(data, code, headers)
-      else
-        -- If request failed and we haven't reached max retries yet, try again
-        if (retryCount or 0) < config.maxRetries then
-          print("Request failed: " .. (errorMsg or "Unknown error") .. " - Retrying...")
-          https.request(url, callback, (retryCount or 0) + 1)
-        else
-          -- If max retries reached, switch to mock mode
-          print("Max retries reached. Falling back to mock data.")
-          state.useMockData = true
-          https.request(url, callback, 0)
-        end
-      end
-    end, state.libraries)
+    makeRealRequest(url, wrappedCallback, state.libraries)
   end)
   
   if not ok then
@@ -291,6 +309,16 @@ function https.update(dt)
       i = i + 1
     end
   end
+end
+
+-- Get current request stats
+function https.getRequestStats()
+  return {
+    active = state.stats.activeRequests,
+    total = state.stats.totalRequests,
+    completed = state.stats.completedRequests,
+    failed = state.stats.failedRequests
+  }
 end
 
 -- Force switch to mock data mode

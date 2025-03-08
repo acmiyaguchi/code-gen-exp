@@ -135,7 +135,7 @@ function app.loadStoryDetails(storyId)
       state.selectedStory = result
       state.screen = "story_detail"
       
-      -- Load comments
+      -- Load comments - state remains loading
       utils.logPerformance("Proceeding to load comments")
       app.loadStoryComments(storyId)
     else
@@ -196,11 +196,24 @@ function love.load()
   utils.logPerformance("LÖVE load callback completed")
 end
 
+-- Update function to check for active requests
 function love.update(dt)
   local state = app.state
   
   -- Process HTTP requests
   https.update(dt)
+  
+  -- Update loading state based on active requests
+  local requestStats = https.getRequestStats()
+  if requestStats.active > 0 then
+    state.ui.loading = true
+  elseif state.ui.loading and requestStats.active == 0 then
+    -- Only set loading to false if we're not in the middle of a multi-step operation
+    -- This gives UI time to process received data
+    if not state.ui.processingData then
+      state.ui.loading = false
+    end
+  end
   
   -- Auto-refresh timer
   state.refreshTimer = state.refreshTimer + dt
