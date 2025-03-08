@@ -1,0 +1,9 @@
+Create a Love2D simulation of a flock of birds. The birds should exhibit flocking behavior based on the Boids algorithm. Each bird should follow three primary rules:
+
+    Separation: Steer to avoid crowding local flockmates.  Birds should maintain a minimum distance from each other.
+
+    Alignment: Steer towards the average heading of local flockmates.  Birds should try to match the direction and speed of nearby birds.
+
+    Cohesion: Steer to move towards the average position (center of mass) of local flockmates. Birds should try to stay close to the group.
+
+The simulation should visually represent the birds (e.g., as triangles or circles) and their movement. The birds should wrap around the screen edges; when a bird goes off one edge, it should reappear on the opposite edge. The flock's behavior should be adjustable, ideally through parameters that control the strength of the separation, alignment, and cohesion forces, as well as the birds' maximum speed and perception radius (the distance within which they consider other birds).
