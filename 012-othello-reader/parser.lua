@@ -103,9 +103,9 @@ function Parser.parse_play_file(filename)
 end
 
 -- Processes a scene text into chunks for display as bubbles
--- Improved to ensure a character's complete speech is in one bubble
+-- Improved to consolidate a character's dialogue into a single bubble
 function Parser.process_scene_into_bubbles(scene_text, max_chars_per_bubble)
-    max_chars_per_bubble = max_chars_per_bubble or 1500  -- Increased to allow for longer speeches
+    max_chars_per_bubble = max_chars_per_bubble or 2000  -- Increased for longer speeches
     local bubbles = {}
     
     -- First, split the text into lines
@@ -116,32 +116,30 @@ function Parser.process_scene_into_bubbles(scene_text, max_chars_per_bubble)
         end
     end
     
-    -- Find all character names for better recognition
+    -- Identify character names (typically in ALL CAPS)
     local character_names = {}
-    local i = 1
-    while i <= #lines do
-        local line = lines[i]
-        local name = line:match("^%s*([A-Z][A-Z%s]+)%s*$")
-        if name and #name < 30 then
+    for i, line in ipairs(lines) do
+        local name = line:match("^%s*([A-Z][A-Z%s%.]+)%s*$")
+        if name and #name < 30 and not name:match("SCENE") and not name:match("ACT") then
             character_names[name] = true
         end
-        i = i + 1
     end
     
-    -- Special character name patterns that might be mixed case
-    local special_patterns = {
+    -- Add common stage directions and scene elements
+    local stage_patterns = {
         "^%s*Enter ",
         "^%s*Exit ",
         "^%s*Re%-enter ",
         "^%s*Exeunt",
         "^%s*%[",
         "^%s*To ",
-        "^%s*Scene:"
+        "^%s*Scene:",
+        "^%s*A[%s%w]+%."  -- Scene descriptions like "A street." or "A hall."
     }
     
     -- Function to check if a line is a stage direction
     local function is_stage_direction(line)
-        for _, pattern in ipairs(special_patterns) do
+        for _, pattern in ipairs(stage_patterns) do
             if line:match(pattern) then
                 return true
             end
@@ -154,49 +152,95 @@ function Parser.process_scene_into_bubbles(scene_text, max_chars_per_bubble)
     while i <= #lines do
         local line = lines[i]
         
-        -- Check if this is a stage direction
+        -- Check if this is a stage direction or scene description
         if is_stage_direction(line) then
-            -- Add stage direction as its own bubble
             table.insert(bubbles, line)
             i = i + 1
+            
         -- Check if this is a character name
-        elseif line:match("^%s*([A-Z][A-Z%s]+)%s*$") and character_names[line:match("^%s*([A-Z][A-Z%s]+)%s*$")] then
-            local current_character = line:match("^%s*([A-Z][A-Z%s]+)%s*$")
+        elseif line:match("^%s*([A-Z][A-Z%s%.]+)%s*$") and 
+               character_names[line:match("^%s*([A-Z][A-Z%s%.]+)%s*$")] then
+            
+            local current_character = line:match("^%s*([A-Z][A-Z%s%.]+)%s*$")
             local speech_lines = {line}  -- Start with character name
-            local current_length = #line
             i = i + 1
             
-            -- Collect all lines until we hit another character name or stage direction
-            while i <= #lines do
+            local current_length = #line
+            local speech_complete = false
+            
+            -- Collect ALL dialogue for this character until next character or stage direction
+            while i <= #lines and not speech_complete do
                 local next_line = lines[i]
                 
-                -- Stop if we hit another character name or stage direction
-                if (next_line:match("^%s*([A-Z][A-Z%s]+)%s*$") and character_names[next_line:match("^%s*([A-Z][A-Z%s]+)%s*$")]) 
-                    or is_stage_direction(next_line) then
-                    break
+                -- Stop if we hit another character name
+                if next_line:match("^%s*([A-Z][A-Z%s%.]+)%s*$") and 
+                   character_names[next_line:match("^%s*([A-Z][A-Z%s%.]+)%s*$")] then
+                    speech_complete = true
+                
+                -- Stop if we hit a stage direction that's not inside brackets (standalone)
+                elseif is_stage_direction(next_line) and not next_line:match("^%s*%[") then
+                    speech_complete = true
+                
+                -- Otherwise add line to current speech
+                else
+                    table.insert(speech_lines, next_line)
+                    current_length = current_length + #next_line
+                    i = i + 1
+                    
+                    -- If this speech is getting too long, break here for readability
+                    if current_length > max_chars_per_bubble and #speech_lines > 5 then
+                        speech_complete = true
+                    end
                 end
                 
-                -- Add this line to the current speech
-                table.insert(speech_lines, next_line)
-                current_length = current_length + #next_line
-                i = i + 1
-                
-                -- Break into multiple bubbles if speech becomes too long
-                if current_length > max_chars_per_bubble then
-                    break
+                -- If speech is complete, don't increment i (we need to process this line again)
+                if speech_complete and not (next_line:match("^%s*([A-Z][A-Z%s%.]+)%s*$") and 
+                                          character_names[next_line:match("^%s*([A-Z][A-Z%s%.]+)%s*$")]) then
+                    i = i - 1
                 end
             end
             
-            -- Add complete speech bubble
-            table.insert(bubbles, table.concat(speech_lines, "\n"))
+            -- Add complete speech bubble with all lines for this character
+            if #speech_lines > 0 then
+                table.insert(bubbles, table.concat(speech_lines, "\n"))
+            end
+            
+            i = i + 1
+            
+        -- Handle anything else (scene descriptions, etc.)
         else
-            -- Other text (scene descriptions, etc.)
             table.insert(bubbles, line)
             i = i + 1
         end
     end
     
-    return bubbles
+    -- Post-processing to combine consecutive lines that belong together logically
+    local processed_bubbles = {}
+    local current_bubble = nil
+    local current_bubble_length = 0
+    
+    for _, bubble in ipairs(bubbles) do
+        -- If bubble starts with a stage direction in brackets but isn't a standalone stage direction
+        if bubble:match("^%s*%[") and #bubble < 100 and current_bubble then
+            -- Append it to the previous bubble
+            current_bubble = current_bubble .. "\n" .. bubble
+            current_bubble_length = current_bubble_length + #bubble
+        else
+            -- Start a new bubble
+            if current_bubble then
+                table.insert(processed_bubbles, current_bubble)
+            end
+            current_bubble = bubble
+            current_bubble_length = #bubble
+        end
+    end
+    
+    -- Add the final bubble if there is one
+    if current_bubble then
+        table.insert(processed_bubbles, current_bubble)
+    end
+    
+    return processed_bubbles
 end
 
 return Parser
