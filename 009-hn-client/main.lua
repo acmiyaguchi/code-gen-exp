@@ -1,6 +1,17 @@
 -- Hacker News Client for LÖVE2D
 -- Main application file
 
+-- Manually set up paths for LuaRocks modules
+local home = os.getenv("HOME")
+if home then
+    package.path = home .. "/.luarocks/share/lua/5.1/?.lua;" .. 
+                   home .. "/.luarocks/share/lua/5.1/?/init.lua;" .. 
+                   package.path
+    package.cpath = home .. "/.luarocks/lib/lua/5.1/?.so;" .. 
+                    package.cpath
+    print("Added LuaRocks paths to package path")
+end
+
 -- Import modules
 local api = require("api")
 local ui = require("ui")

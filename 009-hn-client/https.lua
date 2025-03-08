@@ -1,14 +1,30 @@
--- Mock HTTPS module for LÖVE2D 11.5 (no external dependencies)
+-- HTTPS request module using LuaSocket and LuaSec
 
 local https = {}
 
--- We'll always use mock data since we don't have lua-https in LÖVE 11.5
-local useMockData = true
+-- Flag to track if we're using mock data (fallback mode)
+local useMockData = false
 
--- Request queue for simulating asynchronous behavior
+-- Load required libraries
+local socket = require("socket")
+local http, https_lib
+local success = pcall(function()
+    http = require("socket.http")
+    https_lib = require("ssl.https")
+    require("ltn12")
+    return true
+end)
+
+-- If libraries couldn't be loaded, fall back to mock data
+if not success then
+    print("Warning: LuaSocket/LuaSec libraries not found. Using mock data.")
+    useMockData = true
+end
+
+-- Queue to handle both real and mock requests
 local requestQueue = {}
 
--- Mock data for API responses
+-- Mock data for fallback mode
 local mockData = {
     topstories = "[9129911,9129199,9127761,9128141,9128264,9127792,9129248,9127092,9128367]",
     items = {
@@ -108,97 +124,188 @@ for i = 2, 10 do
     mockData.items[tostring(baseId)].kids = kids
 end
 
--- Simulate async requests using a request queue
-function https.request(url, callback)
-    -- Add the request to the queue to be processed during update
+-- Modified version of makeRealRequest to use our queue system
+local function makeRealRequest(url, callback)
+    local responseBody = {}
+    
+    local client = http
+    if url:match("^https://") then
+        client = https_lib
+    end
+    
+    -- Create request in a separate coroutine to avoid blocking
+    local co = coroutine.create(function()
+        local result, code, headers = client.request{
+            url = url,
+            sink = ltn12.sink.table(responseBody),
+            headers = {
+                ["User-Agent"] = "Love2D-HackerNewsClient/1.0"
+            },
+            timeout = 10
+        }
+        
+        local response = table.concat(responseBody)
+        
+        if code == 200 then
+            callback(response, code, headers)
+        else
+            callback("", code or 0, headers, "HTTP error: " .. (code or "unknown"))
+        end
+    end)
+    
+    -- Add the coroutine to our queue
     table.insert(requestQueue, {
-        url = url,
-        callback = callback,
-        delay = 0.2, -- Simulate network delay
-        timeRemaining = 0.2
+        type = "coroutine",
+        co = co
     })
+end
+
+-- Queue a new HTTP request
+function https.request(url, callback, retryCount)
+    if useMockData then
+        -- Add mock request to queue with a delay
+        table.insert(requestQueue, {
+            type = "mock",
+            url = url,
+            callback = callback,
+            delay = 0.2,  -- Simulate network delay
+            timeRemaining = 0.2
+        })
+        return
+    end
+    
+    -- Try to make a real HTTP request
+    local ok, err = pcall(function()
+        makeRealRequest(url, function(data, code, headers, errorMsg)
+            if code == 200 then
+                callback(data, code, headers)
+            else
+                -- If request failed and we haven't reached max retries yet, try again
+                if (retryCount or 0) < 2 then
+                    print("Request failed: " .. (errorMsg or "Unknown error") .. " - Retrying...")
+                    https.request(url, callback, (retryCount or 0) + 1)
+                else
+                    -- If max retries reached, switch to mock mode
+                    print("Max retries reached. Falling back to mock data.")
+                    useMockData = true
+                    https.request(url, callback, 0)
+                end
+            end
+        end)
+    end)
+    
+    if not ok then
+        print("Error making request: " .. tostring(err))
+        useMockData = true
+        https.request(url, callback, 0)
+    end
 end
 
 -- Process queued requests
 function https.update(dt)
-    if #requestQueue == 0 then
-        return
-    end
-    
-    -- Process requests in the queue
+    -- Process mock requests
     local i = 1
     while i <= #requestQueue do
         local request = requestQueue[i]
         
-        -- Decrease the time remaining for this request
-        request.timeRemaining = request.timeRemaining - dt
-        
-        -- If the delay has elapsed, process the request
-        if request.timeRemaining <= 0 then
-            local url = request.url
-            local callback = request.callback
+        if request.type == "mock" then
+            -- Update delay
+            request.timeRemaining = request.timeRemaining - dt
             
-            -- Process the request based on URL
-            if url:match("topstories") then
-                callback(mockData.topstories, 200, {})
-            elseif url:match("/item/") then
-                local id = url:match("/item/(%d+)%.json")
+            -- If delay is done, process the mock request
+            if request.timeRemaining <= 0 then
+                local url = request.url
+                local callback = request.callback
                 
-                if mockData.items[id] then
-                    -- Convert mock item to JSON string
-                    local item = mockData.items[id]
-                    local jsonStr
+                -- Handle mock data
+                if url:match("topstories") then
+                    callback(mockData.topstories, 200, {})
+                elseif url:match("/item/") then
+                    local id = url:match("/item/(%d+)%.json")
                     
-                    if item.type == "story" then
-                        jsonStr = string.format([[{"id":%d,"title":"%s","by":"%s","score":%d,"time":%d,"url":"%s","type":"story"}]],
-                            item.id, item.title, item.by, item.score, item.time, item.url or ""
-                        )
+                    if mockData.items[id] then
+                        -- Convert mock item to JSON string
+                        local item = mockData.items[id]
+                        local jsonStr
                         
-                        -- Add kids array if present
-                        if item.kids and #item.kids > 0 then
-                            local kidsStr = "["
-                            for i, kid in ipairs(item.kids) do
-                                kidsStr = kidsStr .. kid
-                                if i < #item.kids then
-                                    kidsStr = kidsStr .. ","
-                                end
-                            end
-                            kidsStr = kidsStr .. "]"
+                        if item.type == "story" then
+                            jsonStr = string.format([[{"id":%d,"title":"%s","by":"%s","score":%d,"time":%d,"url":"%s","type":"story"}]],
+                                item.id, item.title, item.by, item.score, item.time, item.url or ""
+                            )
                             
-                            -- Insert kids array before closing brace
-                            jsonStr = jsonStr:sub(1, -2) .. ',"kids":' .. kidsStr .. "}"
+                            -- Add kids array if present
+                            if item.kids and #item.kids > 0 then
+                                local kidsStr = "["
+                                for i, kid in ipairs(item.kids) do
+                                    kidsStr = kidsStr .. kid
+                                    if i < #item.kids then
+                                        kidsStr = kidsStr .. ","
+                                    end
+                                end
+                                kidsStr = kidsStr .. "]"
+                                
+                                -- Insert kids array before closing brace
+                                jsonStr = jsonStr:sub(1, -2) .. ',"kids":' .. kidsStr .. "}"
+                            end
+                        elseif item.type == "comment" then
+                            jsonStr = string.format([[{"id":%d,"text":"%s","by":"%s","time":%d,"parent":%d,"type":"comment"}]],
+                                item.id, (item.text or ""):gsub('"', '\\"'), item.by, item.time, item.parent or 0
+                            )
                         end
-                    elseif item.type == "comment" then
-                        jsonStr = string.format([[{"id":%d,"text":"%s","by":"%s","time":%d,"parent":%d,"type":"comment"}]],
-                            item.id, (item.text or ""):gsub('"', '\\"'), item.by, item.time, item.parent or 0
-                        )
-                    end
-                    
-                    if jsonStr then
-                        callback(jsonStr, 200, {})
+                        
+                        if jsonStr then
+                            callback(jsonStr, 200, {})
+                        else
+                            callback("{}", 200, {})
+                        end
                     else
                         callback("{}", 200, {})
                     end
                 else
-                    callback("{}", 200, {})
+                    callback("{}", 404, {})
+                end
+                
+                table.remove(requestQueue, i)
+            else
+                i = i + 1
+            end
+        elseif request.type == "coroutine" then
+            -- Handle coroutines (for real requests)
+            if coroutine.status(request.co) == "suspended" then
+                local ok, err = coroutine.resume(request.co)
+                if not ok then
+                    print("Coroutine error: " .. tostring(err))
+                    table.remove(requestQueue, i)
+                else
+                    i = i + 1
                 end
             else
-                callback("{}", 404, {})
+                table.remove(requestQueue, i)
             end
-            
-            -- Remove the request from the queue
-            table.remove(requestQueue, i)
         else
             i = i + 1
         end
     end
 end
 
--- These functions remain for API compatibility
-function https.init() 
-    print("Using sample data (LÖVE 11.5 compatible mode)")
+-- Force switch to mock data mode
+function https.useMockData()
+    useMockData = true
+    print("Switched to mock data mode")
 end
-function https.useMockData() end
-function https.isUsingMockData() return true end
+
+-- Check if we're using mock data mode
+function https.isUsingMockData()
+    return useMockData
+end
+
+-- Initialize module
+function https.init() 
+    if useMockData then
+        print("Using sample data (LuaSocket/LuaSec not available)")
+    else
+        print("HTTPS module initialized with LuaSocket/LuaSec")
+    end
+end
 
 return https
