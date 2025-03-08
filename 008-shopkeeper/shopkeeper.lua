@@ -160,9 +160,17 @@ function Shopkeeper:getGreetingDialogue()
                 text = "What can I do for you today?",
                 speaker = self.name,
                 options = {
-                    {text = "I'd like to see your wares.", nextState = 1},
-                    {text = "Just looking around.", nextState = 2},
+                    {text = "I'd like to see your wares.", nextState = "exit", action = "shop"},
+                    {text = "Just looking around.", nextState = "exit"},
                     {text = "Who are you?", nextState = 3}
+                }
+            },
+            {
+                text = "I'm " .. self.name .. ", the owner of this humble shop. Been here for fifteen years selling the finest goods in town!",
+                speaker = self.name,
+                options = {
+                    {text = "Show me what you're selling.", nextState = "exit", action = "shop"},
+                    {text = "Good to meet you. I'll be on my way.", nextState = "exit"}
                 }
             }
         }
@@ -173,9 +181,17 @@ function Shopkeeper:getGreetingDialogue()
                 text = "Need something?",
                 speaker = self.name,
                 options = {
-                    {text = "Show me what you've got.", nextState = 1, action = "shop"},
-                    {text = "Just passing by.", nextState = 2},
-                    {text = "Tell me about this place.", nextState = 4}
+                    {text = "Show me what you've got.", nextState = "exit", action = "shop"},
+                    {text = "Just passing by.", nextState = "exit"},
+                    {text = "Tell me about this place.", nextState = 3}
+                }
+            },
+            {
+                text = "This shop has been in my family for generations. We sell only the finest goods sourced from all over the realm!",
+                speaker = self.name,
+                options = {
+                    {text = "I'd like to see your inventory.", nextState = "exit", action = "shop"},
+                    {text = "Interesting. I'll be going now.", nextState = "exit"}
                 }
             }
         }

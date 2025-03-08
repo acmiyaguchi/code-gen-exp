@@ -101,6 +101,14 @@ function updatePlayer(dt)
 end
 
 function love.keypressed(key)
+    if key == "escape" then
+        -- Emergency exit from any state back to playing
+        if gameState == "dialogue" or gameState == "shopping" then
+            gameState = "playing"
+            return
+        end
+    end
+    
     if gameState == "playing" then
         if key == "space" then
             if shopkeeper.state == 'greeting' then
@@ -118,6 +126,7 @@ function love.keypressed(key)
             if dialogueSystem.nextAction == "shop" then
                 gameState = "shopping"
                 shop:open(player)
+                dialogueSystem.nextAction = nil
             else
                 gameState = "playing"
             end

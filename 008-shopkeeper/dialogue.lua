@@ -75,6 +75,10 @@ end
 
 function DialogueSystem:handleInput(key)
     local currentDialogue = self.dialogue[self.currentIndex]
+    if not currentDialogue then
+        self.finished = true
+        return
+    end
     
     if currentDialogue.options then
         -- Handle option selection
@@ -85,7 +89,9 @@ function DialogueSystem:handleInput(key)
         elseif key == "space" or key == "return" then
             local selectedOption = currentDialogue.options[self.selectedOption]
             
-            if selectedOption.nextState then
+            if selectedOption.nextState == "exit" then
+                self.finished = true
+            elseif type(selectedOption.nextState) == "number" then
                 self.currentIndex = selectedOption.nextState
             else
                 self.finished = true
