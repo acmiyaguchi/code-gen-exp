@@ -19,12 +19,13 @@ setupPaths()
 local api = require("api")
 local ui = require("ui")
 local utils = require("utils")
-local https = require("https")
+local https
+local splash = require("splash") -- Load splash module at the beginning
 local app = {}
 
 -- Application state
 app.state = {
-  screen = "stories", -- "stories" or "story_detail"
+  screen = "splash", -- "splash", "stories", or "story_detail"
   stories = {},
   pagination = {
     currentPage = 1,
@@ -44,47 +45,239 @@ app.state = {
     enableVerboseLogging = false,  -- Set to true to enable verbose logging
     frameCounter = 0,
     logInterval = 60  -- Only log every 60 frames (about once per second at 60fps)
+  },
+  splash = {
+    startTime = 0,
+    duration = 2.0,  -- Show splash for 2 seconds minimum
+    minDuration = 2.0,
+    complete = false,
+    readyToTransition = false,
+    pendingInitialization = true
   }
 }
 
 -- Initialize the application
 function app.init()
   utils.logPerformance("Starting app initialization")
+  
   -- Set window properties
   love.window.setTitle("Love2D Hacker News Client")
   love.window.setMode(800, 600, {resizable = true})
-  love.graphics.setBackgroundColor(0.95, 0.95, 0.95)
   
-  -- Initialize HTTPS module
-  utils.logPerformance("Initializing HTTPS module")
-  https.init()
+  -- Start with dark background for splash screen visibility
+  love.graphics.setBackgroundColor(0.1, 0.1, 0.1)
+  
+  -- Initialize splash screen early
+  splash.init()
   
   -- Load UI resources
   utils.logPerformance("Loading UI resources")
   ui.loadFonts()
   
-  -- Initial data fetch
-  utils.logPerformance("Starting initial data fetch")
-  app.loadTopStories()
+  -- Start splash screen timer
+  app.state.splash.startTime = love.timer.getTime()
+  app.state.screen = "splash" -- Ensure we start at splash screen
   
-  -- Setup key information
-  print("Press F5 to switch to mock data mode if experiencing connection issues")
-  print("Press Ctrl+Down to load more stories")
   utils.logPerformance("App initialization complete")
+  
+  -- We'll load HTTPS module and start network operations after a delay
+  -- to ensure splash screen is visible first
+  app.state.splash.pendingInitialization = true
+end
+
+-- Delayed initialization of network operations
+function app.delayedInit()
+  -- Import HTTPS module here to defer its initialization
+  https = require("https")
+  
+  -- Initialize HTTPS module
+  utils.logPerformance("Initializing HTTPS module (delayed)")
+  https.init()
+  
+  -- Start loading data
+  app.loadInitialData()
+  
+  app.state.splash.pendingInitialization = false
+end
+
+-- Load initial data in the background
+function app.loadInitialData()
+  utils.logPerformance("Starting initial data fetch")
+  app.state.ui.loading = true
+  
+  -- Set readyToTransition when data is loaded but respect minimum splash duration
+  app.loadTopStories(function()
+    app.state.splash.readyToTransition = true
+  end)
+end
+
+-- Exit splash screen and go to main app
+function app.exitSplashScreen()
+  -- Switch to light theme when exiting splash screen
+  love.graphics.setBackgroundColor(0.95, 0.95, 0.95)
+  
+  app.state.screen = "stories"
+  app.state.splash.complete = true
+  utils.logPerformance("Exited splash screen")
+end
+
+-- LÖVE callbacks
+function love.load()
+  utils.logPerformance("LÖVE load callback started")
+  app.init()
+  utils.logPerformance("LÖVE load callback completed")
+end
+
+function love.update(dt)
+  local state = app.state
+  
+  -- Check if we need to do delayed initialization
+  -- Use a timer to ensure splash screen is visible for at least a frame
+  if state.splash and state.splash.pendingInitialization then
+    -- Add a small delay before starting HTTP operations
+    if love.timer.getTime() - state.splash.startTime > 0.1 then
+      app.delayedInit()
+    end
+  end
+  
+  -- Process HTTP requests if HTTPS module is loaded
+  if https then
+    https.update(dt)
+  end
+  
+  if state.screen == "splash" then
+    -- Calculate how long the splash has been shown
+    local splashElapsedTime = love.timer.getTime() - state.splash.startTime
+    
+    -- Check if it's time to exit the splash screen
+    if splashElapsedTime >= state.splash.minDuration and state.splash.readyToTransition then
+      app.exitSplashScreen()
+    end
+    
+    -- Force timeout if splash screen takes too long (10 seconds max)
+    if splashElapsedTime > 10.0 then
+      utils.logPerformance("Splash screen timeout - forcing transition")
+      
+      -- If no data was loaded, try with mock data
+      if #app.state.stories == 0 then
+        https.useMockData()
+        app.loadTopStories()
+      end
+      
+      app.exitSplashScreen()
+    end
+  else
+    -- Update loading state based on active requests
+    local requestStats = https.getRequestStats()
+    if requestStats.active > 0 then
+      state.ui.loading = true
+    elseif state.ui.loading and requestStats.active == 0 then
+      -- Only set loading to false if we're not in the middle of a multi-step operation
+      -- This gives UI time to process received data
+      if not state.ui.processingData then
+        state.ui.loading = false
+      end
+    end
+    
+    -- Auto-refresh timer
+    state.refreshTimer = state.refreshTimer + dt
+    if state.refreshTimer >= state.autoRefreshInterval then
+      state.refreshTimer = 0
+      if state.screen == "stories" then
+        app.loadTopStories()
+      end
+    end
+  end
+end
+
+-- Add a helper function to control debug logging
+local function shouldLogDebug(state)
+  -- Only log if verbose logging is enabled AND we're at the logging interval
+  return state.debug.enableVerboseLogging and state.debug.frameCounter == 0
+end
+
+function love.draw()
+  local state = app.state
+  local debug = state.debug
+  debug.frameCounter = (debug.frameCounter + 1) % debug.logInterval
+  
+  -- Only log start of draw cycle if verbose logging is enabled and we're at the log interval
+  if shouldLogDebug(state) then
+    utils.logPerformance("Starting draw cycle")
+  end
+  
+  -- Draw main content based on current screen
+  local drawStart = love.timer.getTime()
+  
+  if state.screen == "splash" then
+    -- Draw splash screen (no need to require it here since we already did at the top)
+    splash.draw()
+    
+    -- Add loading info on top of splash screen if needed
+    if state.ui.loading and https then
+      local requestStats = https.getRequestStats()
+      if requestStats and requestStats.active > 0 then
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.setFont(love.graphics.newFont(10))
+        local loadingText = "Loading stories (" .. requestStats.active .. " requests active)"
+        love.graphics.printf(loadingText, 0, love.graphics.getHeight() - 20, love.graphics.getWidth(), "center")
+      end
+    end
+  elseif state.screen == "stories" then
+    ui.drawStoryList(
+      state.stories, 
+      state.ui.scrollY, 
+      state.ui.loading, 
+      state.ui.error,
+      state.pagination.currentPage, 
+      state.pagination.totalPages
+    )
+  elseif state.screen == "story_detail" then
+    ui.drawStoryDetail(
+      state.selectedStory, 
+      state.comments, 
+      state.ui.scrollY, 
+      state.ui.loading, 
+      state.ui.error
+    )
+  end
+  
+  local drawTime = love.timer.getTime() - drawStart
+  -- Only log if drawing is significantly slow (more than 33ms, which is about 30fps)
+  -- or if verbose logging is enabled on the log interval
+  if drawTime > 0.033 or (debug.enableVerboseLogging and debug.frameCounter == 0) then
+    utils.logPerformance("Content drawing took " .. string.format("%.3f", drawTime) .. "s")
+  end
+  
+  -- Draw overlays
+  if state.ui.loading then
+    ui.drawLoadingIndicator()
+  end
+  
+  if state.ui.error then
+    ui.drawErrorMessage(state.ui.error)
+  end
+  
+  -- Draw mock data indicator
+  if state.ui.usingMockData then
+    ui.drawMockDataIndicator()
+  end
+  
+  -- Draw status bar at bottom of screen
+  ui.drawStatusBar(state)
+  
+  -- Only log completion if we already logged the start
+  if drawTime > 0.033 or (debug.enableVerboseLogging and debug.frameCounter == 0) then
+    utils.logPerformance("Draw cycle completed in " .. string.format("%.3f", love.timer.getTime() - drawStart) .. "s")
+  end
 end
 
 -- Story loading
-function app.loadTopStories(page)
-  utils.logPerformance("Starting to load top stories (page " .. (page or "initial") .. ")")
+function app.loadTopStories(callback)
+  utils.logPerformance("Starting to load top stories")
   local state = app.state
   state.ui.loading = true
   state.ui.error = nil
-  
-  if page == 1 then
-    state.ui.scrollY = 0  -- Reset scroll position for first page
-  end
-  
-  state.ui.usingMockData = false
   
   api.fetchTopStories(function(success, result)
     utils.logPerformance("Received stories data - success: " .. tostring(success))
@@ -92,26 +285,16 @@ function app.loadTopStories(page)
     
     if success then
       utils.logPerformance("Processing " .. #result.items .. " stories")
-      if page == 1 then
-        state.stories = result.items
-      else
-        -- Append new stories
-        for _, story in ipairs(result.items) do
-          table.insert(state.stories, story)
-        end
-      end
-      
-      -- Update pagination
+      state.stories = result.items
       state.pagination.currentPage = result.page
       state.pagination.totalPages = result.totalPages
-      
-      -- Track mock data usage
       state.ui.usingMockData = https.isUsingMockData()
       utils.logPerformance("Stories processed and ready to display")
+      if callback then callback() end
     else
       app.handleError("Failed to load stories: " .. (result or "Unknown error"))
     end
-  end, page or state.pagination.currentPage)
+  end, 1)
 end
 
 function app.loadNextPage()
@@ -189,113 +372,6 @@ function app.handleError(message)
   end
 end
 
--- LÖVE callbacks
-function love.load()
-  utils.logPerformance("LÖVE load callback started")
-  app.init()
-  utils.logPerformance("LÖVE load callback completed")
-end
-
--- Update function to check for active requests
-function love.update(dt)
-  local state = app.state
-  
-  -- Process HTTP requests
-  https.update(dt)
-  
-  -- Update loading state based on active requests
-  local requestStats = https.getRequestStats()
-  if requestStats.active > 0 then
-    state.ui.loading = true
-  elseif state.ui.loading and requestStats.active == 0 then
-    -- Only set loading to false if we're not in the middle of a multi-step operation
-    -- This gives UI time to process received data
-    if not state.ui.processingData then
-      state.ui.loading = false
-    end
-  end
-  
-  -- Auto-refresh timer
-  state.refreshTimer = state.refreshTimer + dt
-  if state.refreshTimer >= state.autoRefreshInterval then
-    state.refreshTimer = 0
-    if state.screen == "stories" then
-      app.loadTopStories(1) -- Refresh from first page
-    end
-  end
-end
-
--- Add a helper function to control debug logging
-local function shouldLogDebug(state)
-  -- Only log if verbose logging is enabled AND we're at the logging interval
-  return state.debug.enableVerboseLogging and state.debug.frameCounter == 0
-end
-
-function love.draw()
-  local state = app.state
-  local debug = state.debug
-  debug.frameCounter = (debug.frameCounter + 1) % debug.logInterval
-  
-  -- Only log start of draw cycle if verbose logging is enabled and we're at the log interval
-  if shouldLogDebug(state) then
-    utils.logPerformance("Starting draw cycle")
-  end
-  
-  -- Draw main content based on current screen
-  local drawStart = love.timer.getTime()
-  
-  -- Draw UI based on current screen
-  if state.screen == "stories" then
-    -- Note: No logging here as we've moved all logging control to inside UI functions
-    ui.drawStoryList(
-      state.stories, 
-      state.ui.scrollY, 
-      state.ui.loading, 
-      state.ui.error,
-      state.pagination.currentPage, 
-      state.pagination.totalPages
-    )
-  elseif state.screen == "story_detail" then
-    -- Note: No logging here as we've moved all logging control to inside UI functions
-    ui.drawStoryDetail(
-      state.selectedStory, 
-      state.comments, 
-      state.ui.scrollY, 
-      state.ui.loading, 
-      state.ui.error
-    )
-  end
-  
-  local drawTime = love.timer.getTime() - drawStart
-  -- Only log if drawing is significantly slow (more than 33ms, which is about 30fps)
-  -- or if verbose logging is enabled on the log interval
-  if drawTime > 0.033 or (debug.enableVerboseLogging and debug.frameCounter == 0) then
-    utils.logPerformance("Content drawing took " .. string.format("%.3f", drawTime) .. "s")
-  end
-  
-  -- Draw overlays
-  if state.ui.loading then
-    ui.drawLoadingIndicator()
-  end
-  
-  if state.ui.error then
-    ui.drawErrorMessage(state.ui.error)
-  end
-  
-  -- Draw mock data indicator
-  if state.ui.usingMockData then
-    ui.drawMockDataIndicator()
-  end
-  
-  -- Draw status bar at bottom of screen
-  ui.drawStatusBar(state)
-  
-  -- Only log completion if we already logged the start
-  if drawTime > 0.033 or (debug.enableVerboseLogging and debug.frameCounter == 0) then
-    utils.logPerformance("Draw cycle completed in " .. string.format("%.3f", love.timer.getTime() - drawStart) .. "s")
-  end
-end
-
 function love.mousepressed(x, y, button)
   if button ~= 1 then return end -- Only handle left clicks
   
@@ -361,8 +437,15 @@ function love.wheelmoved(x, y)
   state.ui.scrollY = math.max(0, math.min(state.ui.scrollY - y * 30, maxScroll))
 end
 
+-- Additional key handling for splash screen
 function love.keypressed(key)
   local state = app.state
+  
+  -- Skip splash screen with any key press
+  if state.screen == "splash" and key ~= nil then
+    app.exitSplashScreen()
+    return
+  end
   
   -- Navigation keys
   if key == "escape" and state.screen == "story_detail" then
