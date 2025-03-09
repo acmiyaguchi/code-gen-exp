@@ -16,20 +16,28 @@ function minikanren_interface.is_valid_move(board_state, from_row, from_col, to_
     local piece = board_state[from_row][from_col]
     if not piece then return false end
     
-    local piece_type = piece:match("_%a+$"):sub(2)
-    local color = piece:sub(1,5)
+    -- Create piece object
+    local piece_obj = {
+        type = piece:match("_%a+$"):sub(2),
+        color = piece:sub(1,5),
+        row = from_row,
+        col = from_col
+    }
     
-    -- Get the target square
-    local target = board_state[to_row][to_col]
-    if target and target:sub(1,5) == color then
-        return false  -- Can't capture own piece
+    -- Check if it's this player's turn
+    if piece_obj.color ~= board_state.current_turn then
+        return false
     end
     
-    -- Basic move validation based on piece type
-    local piece_info = pieces.get_piece_type(piece_type)
-    if not piece_info then return false end
+    -- Use pieces module for miniKanren-based validation
+    local basic_valid = pieces.is_valid_move(piece_obj, board_state, from_row, from_col, to_row, to_col)
     
-    return piece_info.move_func({type = piece_type, color = color}, board_state, from_row, from_col, to_row, to_col)
+    -- If move is valid according to piece rules, make sure it doesn't cause check
+    if basic_valid then
+        return not minikanren_interface.move_causes_check(board_state, from_row, from_col, to_row, to_col)
+    end
+    
+    return false
 end
 
 -- Get all valid moves for a piece
@@ -182,6 +190,78 @@ function minikanren_interface.minimax_score(board_state, depth, alpha, beta, max
         end
         return min_eval
     end
+end
+
+-- Check if the current player is in check
+function minikanren_interface.is_in_check(board_state)
+    local current_color = board_state.current_turn
+    return pieces.is_in_check(board_state, current_color)
+end
+
+-- Check if a move would put or leave the player in check (illegal)
+function minikanren_interface.move_causes_check(board_state, from_row, from_col, to_row, to_col)
+    -- Make a copy of the board
+    local test_board = utils.deep_copy(board_state)
+    
+    -- Execute the move temporarily
+    local piece = test_board[from_row][from_col]
+    test_board[to_row][to_col] = piece
+    test_board[from_row][from_col] = nil
+    
+    -- Check if the player's king is in check after the move
+    local piece_color = piece:sub(1,5)
+    return pieces.is_in_check(test_board, piece_color)
+end
+
+-- Check if the game is in checkmate or stalemate
+function minikanren_interface.is_checkmate_or_stalemate(board_state)
+    local current_color = board_state.current_turn
+    local in_check = pieces.is_in_check(board_state, current_color)
+    
+    -- Check if any legal moves exist
+    local has_legal_moves = false
+    
+    for row = 1, 8 do
+        for col = 1, 8 do
+            local piece = board_state[row][col]
+            if piece and piece:sub(1,5) == current_color then
+                local piece_obj = {
+                    type = piece:match("_%a+$"):sub(2),
+                    color = current_color,
+                    row = row,
+                    col = col
+                }
+                
+                -- Check potential moves for this piece
+                for to_row = 1, 8 do
+                    for to_col = 1, 8 do
+                        if row ~= to_row or col ~= to_col then
+                            if pieces.is_valid_move(piece_obj, board_state, row, col, to_row, to_col) then
+                                -- Check if move leaves king in check
+                                if not minikanren_interface.move_causes_check(board_state, row, col, to_row, to_col) then
+                                    has_legal_moves = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if has_legal_moves then break end
+                end
+            end
+            if has_legal_moves then break end
+        end
+        if has_legal_moves then break end
+    end
+    
+    if not has_legal_moves then
+        if in_check then
+            return true, current_color == "white" and "Black wins by checkmate!" or "White wins by checkmate!"
+        else
+            return true, "Stalemate! The game is a draw."
+        end
+    end
+    
+    return false, ""
 end
 
 return minikanren_interface

@@ -2,9 +2,29 @@
 All notable changes to the Chess Kanren project will be documented in this file.
 
 ## [Unreleased]
-- miniKanren integration for move validation
-- Enhanced piece movement rules
-- AI timer delay implementation
+- Fix stalemate detection which currently triggers incorrectly
+- Enhance miniKanren integration for more complex chess patterns
+- Improve AI decision making with deeper search
+
+## [0.3.0]
+### Added
+- Complete miniKanren-based move validation for all pieces
+- Check and checkmate detection using constraint logic
+- Castling, en passant, and pawn promotion rules
+- Integration of miniKanren in AI evaluation system
+
+### Changed
+- Refactored piece movement to use declarative constraints
+- Enhanced board representation to track game state
+- Improved move validation by detecting checks
+
+### Fixed
+- AI timer implementation using delta time
+- Board coordinate system and piece selection
+
+### Known Issues
+- Stalemate detection triggers incorrectly, causing games to end prematurely
+- Some edge cases in check detection need refinement
 
 ## [0.2.0]
 ### Added
