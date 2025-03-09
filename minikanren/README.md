@@ -57,9 +57,17 @@ print(last) -- Outputs: 5
 
 ## Running Tests
 
-```bash
-lua run_tests.lua
-```
+We use the Busted testing framework for running tests. To run the tests, follow these steps:
+
+1. Install Busted if you haven't already:
+    ```bash
+    luarocks install busted
+    ```
+
+2. Run the tests using the provided test runner script:
+    ```bash
+    busted tests
+    ```
 
 ## Acknowledgments
 
