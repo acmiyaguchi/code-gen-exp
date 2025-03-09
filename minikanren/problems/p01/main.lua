@@ -1,5 +1,5 @@
 -- Problem 1: Find the last element of a list
-local mk = require("microkanren")
+local mk = require("../../microkanren")
 
 local M = {}
 

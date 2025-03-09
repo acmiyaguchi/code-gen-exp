@@ -1,4 +1,4 @@
-local problem1 = require("problems.problem1")
+local problem1 = require("problems.p01.main")
 
 -- Test the last element function
 local function test_last_element()
