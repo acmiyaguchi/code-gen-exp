@@ -1,6 +1,6 @@
-local ukanren = require("ukanren")
-local pieces = require("pieces")
-local utils = require("utils")
+local ukanren = require("lib.vendor.ukanren")
+local pieces = require("lib.pieces")
+local utils = require("lib.utils")
 
 local minikanren_interface = {}
 

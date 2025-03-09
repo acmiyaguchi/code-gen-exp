@@ -1,7 +1,7 @@
-local board = require("board")
-local graphics = require("graphics")
-local input = require("input")
-local ai = require("ai")
+local board = require("lib.board")
+local graphics = require("lib.graphics")
+local input = require("lib.input")
+local ai = require("lib.ai")
 
 -- Game state
 local game_state = {

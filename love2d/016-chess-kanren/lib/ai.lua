@@ -1,5 +1,5 @@
-local board = require("board")
-local utils = require("utils")
+local board = require("lib.board")
+local utils = require("lib.utils")
 
 local ai = {}
 

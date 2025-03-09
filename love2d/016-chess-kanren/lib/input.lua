@@ -1,6 +1,6 @@
 local input = {}
-local graphics = require("graphics")
-local board = require("board")
+local graphics = require("lib.graphics")
+local board = require("lib.board")
 
 function input.handle_mouse_click(x, y, chess_board, selected_piece)
     -- Convert screen position to board coordinates

@@ -1,4 +1,4 @@
-local utils = require("utils")
+local utils = require("lib.utils")
 -- Don't require minikanren_interface here to avoid circular dependency
 
 local board = {}

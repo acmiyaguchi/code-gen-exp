@@ -1,4 +1,5 @@
 local pieces = {}
+local board = require("lib.board")  -- Add this import
 
 -- Piece definitions
 local piece_types = {}
