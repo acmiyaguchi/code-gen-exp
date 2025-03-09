@@ -89,4 +89,31 @@ function board.is_game_over(b)
     return false, ""
 end
 
+function board.get_valid_moves(board_state, from_row, from_col)
+    local valid_moves = {}
+    local piece = board_state[from_row][from_col]
+    
+    if not piece then
+        return valid_moves
+    end
+    
+    -- Check all possible board positions
+    for to_row = 1, 8 do
+        for to_col = 1, 8 do
+            -- A move is valid if:
+            -- 1. The destination is different from the start
+            -- 2. Either empty or contains an enemy piece
+            if (to_row ~= from_row or to_col ~= from_col) then
+                local target = board_state[to_row][to_col]
+                if not target or target:sub(1,5) ~= piece:sub(1,5) then
+                    -- For now, allowing any move - we'll add proper piece movement rules later
+                    table.insert(valid_moves, {to_row, to_col})
+                end
+            end
+        end
+    end
+    
+    return valid_moves
+end
+
 return board

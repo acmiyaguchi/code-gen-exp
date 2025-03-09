@@ -53,6 +53,15 @@ function input.handle_mouse_click(x, y, chess_board, selected_piece)
     return "none"
 end
 
+-- Function to get valid moves for a selected piece
+function input.get_valid_moves(board, piece)
+    local valid_moves = {}
+    -- Logic to determine valid moves for the piece
+    -- This will depend on the piece type and board state
+    -- Add valid moves to the valid_moves table
+    return valid_moves
+end
+
 function input.get_highlighted_squares(chess_board, selected_piece)
     if not selected_piece then
         return {}

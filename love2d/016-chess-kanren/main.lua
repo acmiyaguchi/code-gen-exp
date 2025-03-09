@@ -10,7 +10,8 @@ local game_state = {
     highlighted_squares = {},
     ai_thinking = false,
     game_over = false,
-    message = ""
+    message = "",
+    ai_timer = 0  -- Add this line
 }
 
 function love.load()
@@ -25,9 +26,13 @@ function love.update(dt)
     -- If it's the AI's turn (black) and the game is not over
     if not game_state.game_over and board.current_turn(game_state.board) == "black" and not game_state.ai_thinking then
         game_state.ai_thinking = true
-        
-        -- Use a small delay to make AI's move visible
-        love.timer.delay(0.5, function()
+        game_state.ai_timer = 0.5  -- Set initial timer value
+    end
+    
+    -- Handle AI timer
+    if game_state.ai_thinking then
+        game_state.ai_timer = game_state.ai_timer - dt
+        if game_state.ai_timer <= 0 then
             local from_row, from_col, to_row, to_col = ai.choose_move(game_state.board, 3)
             if from_row then
                 -- Execute the AI's move
@@ -46,7 +51,7 @@ function love.update(dt)
             end
             
             game_state.ai_thinking = false
-        end)
+        end
     end
 end
 
