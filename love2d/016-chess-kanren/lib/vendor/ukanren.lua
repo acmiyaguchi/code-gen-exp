@@ -151,9 +151,12 @@ local empty_env = cons(mzero, 0)
 
 -- Exported interface
 return {
-    cons=cons, car=car, cdr=cdr,
+    cons=cons, car=car, cdr=cdr, is_pair=is_pair,
+    var=var, is_var=is_var,
     eq=eq,
     call_fresh=call_fresh,
     conj=conj, disj=disj,
     empty_env=empty_env,
+    unit=unit,
+    mzero=mzero,
 }

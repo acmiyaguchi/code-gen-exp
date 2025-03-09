@@ -1,6 +1,7 @@
 local input = {}
 local graphics = require("lib.graphics")
 local board = require("lib.board")
+local minikanren_interface = require("lib.minikanren_interface")
 
 function input.handle_mouse_click(x, y, chess_board, selected_piece)
     -- Convert screen position to board coordinates
@@ -20,19 +21,14 @@ function input.handle_mouse_click(x, y, chess_board, selected_piece)
             return "deselect"
         end
         
-        -- Check if the move is valid
-        local valid_moves = board.get_valid_moves(chess_board, from_row, from_col)
-        
-        for _, move in ipairs(valid_moves) do
-            if move[1] == row and move[2] == col then
-                -- Valid move
-                return "move", {
-                    from_row = from_row,
-                    from_col = from_col,
-                    to_row = row,
-                    to_col = col
-                }
-            end
+        -- Check if the move is valid using miniKanren
+        if minikanren_interface.is_valid_move(chess_board, from_row, from_col, row, col) then
+            return "move", {
+                from_row = from_row,
+                from_col = from_col,
+                to_row = row,
+                to_col = col
+            }
         end
         
         -- Not a valid move, check if selecting another piece of same color
@@ -53,15 +49,6 @@ function input.handle_mouse_click(x, y, chess_board, selected_piece)
     return "none"
 end
 
--- Function to get valid moves for a selected piece
-function input.get_valid_moves(board, piece)
-    local valid_moves = {}
-    -- Logic to determine valid moves for the piece
-    -- This will depend on the piece type and board state
-    -- Add valid moves to the valid_moves table
-    return valid_moves
-end
-
 function input.get_highlighted_squares(chess_board, selected_piece)
     if not selected_piece then
         return {}
@@ -72,18 +59,20 @@ function input.get_highlighted_squares(chess_board, selected_piece)
         {row, col, "selected"}  -- Selected piece
     }
     
-    -- Get valid moves and add them as highlights
-    local valid_moves = board.get_valid_moves(chess_board, row, col)
+    -- Get valid moves using miniKanren
+    local valid_moves = minikanren_interface.get_valid_moves(chess_board, {
+        row = row,
+        col = col
+    })
     
     for _, move in ipairs(valid_moves) do
-        local move_row, move_col = move[1], move[2]
-        
-        if chess_board[move_row][move_col] then
+        local to_row, to_col = move.to_row, move.to_col
+        if chess_board[to_row][to_col] then
             -- Capture move
-            table.insert(highlights, {move_row, move_col, "capture"})
+            table.insert(highlights, {to_row, to_col, "capture"})
         else
             -- Regular move
-            table.insert(highlights, {move_row, move_col, "move"})
+            table.insert(highlights, {to_row, to_col, "move"})
         end
     end
     

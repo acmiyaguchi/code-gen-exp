@@ -89,31 +89,27 @@ function board.is_game_over(b)
     return false, ""
 end
 
-function board.get_valid_moves(board_state, from_row, from_col)
-    local valid_moves = {}
-    local piece = board_state[from_row][from_col]
-    
-    if not piece then
-        return valid_moves
+-- Get a piece at the specified position
+function board.get_piece(board_state, row, col)
+    if row < 1 or row > 8 or col < 1 or col > 8 then
+        return nil
     end
     
-    -- Check all possible board positions
-    for to_row = 1, 8 do
-        for to_col = 1, 8 do
-            -- A move is valid if:
-            -- 1. The destination is different from the start
-            -- 2. Either empty or contains an enemy piece
-            if (to_row ~= from_row or to_col ~= from_col) then
-                local target = board_state[to_row][to_col]
-                if not target or target:sub(1,5) ~= piece:sub(1,5) then
-                    -- For now, allowing any move - we'll add proper piece movement rules later
-                    table.insert(valid_moves, {to_row, to_col})
-                end
-            end
-        end
+    local piece_str = board_state[row][col]
+    if not piece_str then
+        return nil
     end
     
-    return valid_moves
+    -- Convert string representation to piece object
+    local color = piece_str:sub(1,5)
+    local piece_type = piece_str:match("_%a+$"):sub(2)
+    
+    return {
+        type = piece_type,
+        color = color,
+        row = row,
+        col = col
+    }
 end
 
 return board
