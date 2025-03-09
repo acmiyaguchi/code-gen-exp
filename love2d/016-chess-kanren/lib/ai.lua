@@ -1,5 +1,6 @@
 local board = require("lib.board")
 local utils = require("lib.utils")
+local minikanren_interface = require("lib.minikanren_interface")
 
 local ai = {}
 
@@ -15,42 +16,31 @@ local piece_values = {
 
 -- Simple board evaluation function
 function ai.evaluate_board(board_state)
-    local score = 0
-    
-    -- Count material
-    for row = 1, 8 do
-        for col = 1, 8 do
-            local piece = board.get_piece(board_state, row, col)
-            if piece then
-                local value = piece_values[piece.type] or 0
-                if piece.color == "white" then
-                    score = score + value
-                else
-                    score = score - value
-                end
-            end
-        end
-    end
-    
-    -- Higher score is better for white, lower for black
-    return score
+    local kanren_board = minikanren_interface.board_to_kanren(board_state)
+    return minikanren_interface.evaluate_position(kanren_board)
 end
 
--- Get all legal moves for a given color
+-- Get all legal moves for a given color using miniKanren
 function ai.get_all_legal_moves(board_state, color)
     local moves = {}
     
     for row = 1, 8 do
         for col = 1, 8 do
-            local piece = board.get_piece(board_state, row, col)
-            if piece and piece.color == color then
-                local piece_moves = board.get_valid_moves(board_state, row, col)
-                for _, move in ipairs(piece_moves) do
+            local piece = board_state[row][col]
+            if piece and piece:sub(1,5) == color then
+                local valid_moves = minikanren_interface.get_valid_moves(board_state, {
+                    row = row,
+                    col = col,
+                    type = piece:match("_%a+$"):sub(2),
+                    color = color
+                })
+                
+                for _, move in ipairs(valid_moves) do
                     table.insert(moves, {
                         from_row = row,
                         from_col = col,
-                        to_row = move.row,
-                        to_col = move.col
+                        to_row = move.to_row,
+                        to_col = move.to_col
                     })
                 end
             end
@@ -104,40 +94,29 @@ function ai.minimax(board_state, depth, alpha, beta, maximizing_player)
 end
 
 -- Choose the best move for the AI
-function ai.choose_move(board, depth)
-    -- Simple AI that makes random legal moves
-    -- For a real chess AI, you'd implement minimax with alpha-beta pruning
+function ai.choose_move(board_state, depth)
+    local moves = ai.get_all_legal_moves(board_state, "black")
+    if #moves == 0 then return nil end
     
-    local possible_moves = {}
+    -- Use miniKanren to evaluate moves
+    local best_move = nil
+    local best_score = math.huge
     
-    -- Find all pieces of the current player
-    for from_row = 1, 8 do
-        for from_col = 1, 8 do
-            local piece = board[from_row][from_col]
-            if piece and piece:sub(1, 5) == "black" then
-                -- Find all possible destinations
-                for to_row = 1, 8 do
-                    for to_col = 1, 8 do
-                        local target = board[to_row][to_col]
-                        if not target or target:sub(1, 5) == "white" then
-                            -- In a real chess game, you'd validate moves based on piece type
-                            -- For now, any move to an empty square or enemy piece is considered valid
-                            table.insert(possible_moves, {from_row, from_col, to_row, to_col})
-                        end
-                    end
-                end
-            end
+    for _, move in ipairs(moves) do
+        local new_board = utils.deep_copy(board_state)
+        board.move_piece(new_board, move.from_row, move.from_col, move.to_row, move.to_col)
+        
+        local score = minikanren_interface.minimax_score(new_board, depth - 1, -math.huge, math.huge, true)
+        if score < best_score then
+            best_score = score
+            best_move = move
         end
     end
     
-    -- Choose a random move
-    if #possible_moves > 0 then
-        local move = possible_moves[math.random(#possible_moves)]
-        return move[1], move[2], move[3], move[4]
-    else
-        -- No moves available
-        return nil
+    if best_move then
+        return best_move.from_row, best_move.from_col, best_move.to_row, best_move.to_col
     end
+    return nil
 end
 
 function ai.copy_board(chess_board)
