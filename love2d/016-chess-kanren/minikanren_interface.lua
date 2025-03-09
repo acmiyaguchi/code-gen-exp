@@ -1,6 +1,6 @@
 local ukanren = require("ukanren")
-local board = require("board")
 local pieces = require("pieces")
+local utils = require("utils")
 
 local minikanren_interface = {}
 
@@ -106,7 +106,7 @@ function minikanren_interface.is_valid_move(board_state, from_row, from_col, to_
     end
     
     -- If not check_only, also need to ensure move doesn't leave king in check
-    local test_board = board.deep_copy(board_state)
+    local test_board = utils.deep_copy(board_state)
     
     -- Execute the move on the test board
     -- (Don't use board.move_piece here since it updates turn)

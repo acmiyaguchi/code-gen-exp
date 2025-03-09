@@ -1,109 +1,80 @@
-local utils = require("utils")
-local minikanren = require("minikanren_interface")
-
 local input = {}
+local graphics = require("graphics")
+local board = require("board")
 
--- Handle mouse click on the chess board
-function input.handle_mouse_click(x, y, board_state, selected_piece)
-    -- Convert screen coordinates to board grid
-    local row, col = utils.pixels_to_grid(x, y)
+function input.handle_mouse_click(x, y, chess_board, selected_piece)
+    -- Convert screen position to board coordinates
+    local row, col = graphics.screen_to_board(x, y)
     
-    -- Check if click is within board boundaries
+    -- If click is outside the board
     if not row or not col then
-        return "invalid", nil
+        return "deselect"
     end
-    
-    -- Get the piece at the clicked position
-    local clicked_piece = board_state.squares[row][col].piece
     
     -- If a piece is already selected
     if selected_piece then
-        -- If clicking on the selected piece again, deselect it
-        if selected_piece.row == row and selected_piece.col == col then
-            return "deselect", nil
+        local from_row, from_col = selected_piece[1], selected_piece[2]
+        
+        -- Check if clicked on the same piece (deselect)
+        if from_row == row and from_col == col then
+            return "deselect"
         end
         
-        -- If clicking on another piece of the same color, select that piece instead
-        if clicked_piece and clicked_piece.color == selected_piece.color then
-            return "select", clicked_piece
+        -- Check if the move is valid
+        local valid_moves = board.get_valid_moves(chess_board, from_row, from_col)
+        
+        for _, move in ipairs(valid_moves) do
+            if move[1] == row and move[2] == col then
+                -- Valid move
+                return "move", {
+                    from_row = from_row,
+                    from_col = from_col,
+                    to_row = row,
+                    to_col = col
+                }
+            end
         end
         
-        -- Check if the move to the clicked square is valid
-        if minikanren.is_valid_move(
-            board_state, 
-            selected_piece.row, 
-            selected_piece.col, 
-            row, 
-            col
-        ) then
-            -- Return the move
-            return "move", {
-                from_row = selected_piece.row,
-                from_col = selected_piece.col,
-                to_row = row,
-                to_col = col
-            }
+        -- Not a valid move, check if selecting another piece of same color
+        local piece = chess_board[row][col]
+        if piece and piece:sub(1, 5) == board.current_turn(chess_board) then
+            return "select", {row, col}
         else
-            -- Invalid move, deselect
-            return "deselect", nil
+            return "deselect"
         end
     else
-        -- No piece selected yet
-        if clicked_piece and clicked_piece.color == board_state.turn then
-            -- Select the piece
-            return "select", clicked_piece
+        -- No piece selected yet, check if selecting a piece of current turn
+        local piece = chess_board[row][col]
+        if piece and piece:sub(1, 5) == board.current_turn(chess_board) then
+            return "select", {row, col}
         end
     end
     
-    return "invalid", nil
+    return "none"
 end
 
--- Get squares to highlight based on selected piece
-function input.get_highlighted_squares(board_state, selected_piece)
-    local highlights = {}
-    
-    -- If no piece is selected, nothing to highlight
+function input.get_highlighted_squares(chess_board, selected_piece)
     if not selected_piece then
-        return highlights
+        return {}
     end
     
-    -- Highlight the selected piece
-    table.insert(highlights, {
-        row = selected_piece.row,
-        col = selected_piece.col,
-        type = "select"
-    })
+    local row, col = selected_piece[1], selected_piece[2]
+    local highlights = {
+        {row, col, "selected"}  -- Selected piece
+    }
     
-    -- Get all valid moves for the selected piece
-    local valid_moves = minikanren.get_valid_moves(board_state, selected_piece)
+    -- Get valid moves and add them as highlights
+    local valid_moves = board.get_valid_moves(chess_board, row, col)
     
-    -- Add highlights for valid moves
     for _, move in ipairs(valid_moves) do
-        table.insert(highlights, {
-            row = move.to_row,
-            col = move.to_col,
-            type = "move"
-        })
-    end
-    
-    -- Highlight the king if in check
-    local is_in_check = board.is_in_check(board_state)
-    if is_in_check then
-        local king_color = board_state.turn
+        local move_row, move_col = move[1], move[2]
         
-        -- Find the king
-        for row = 1, 8 do
-            for col = 1, 8 do
-                local piece = board_state.squares[row][col].piece
-                if piece and piece.type == "king" and piece.color == king_color then
-                    table.insert(highlights, {
-                        row = row,
-                        col = col,
-                        type = "check"
-                    })
-                    break
-                end
-            end
+        if chess_board[move_row][move_col] then
+            -- Capture move
+            table.insert(highlights, {move_row, move_col, "capture"})
+        else
+            -- Regular move
+            table.insert(highlights, {move_row, move_col, "move"})
         end
     end
     
