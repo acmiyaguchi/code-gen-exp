@@ -1,69 +1,11 @@
 -- Nursery Songs Player
 -- Plays three classic nursery songs with a simple UI
 
--- Define frequencies for musical notes (A4 = 440Hz reference)
-local notes = {
-  C4 = 261.63,
-  D4 = 293.66,
-  E4 = 329.63,
-  F4 = 349.23,
-  G4 = 392.00,
-  A4 = 440.00,
-  B4 = 493.88,
-  C5 = 523.25,
-  D5 = 587.33,
-  E5 = 659.25,
-  F5 = 698.46,
-  G5 = 783.99,
-  A5 = 880.00,
-  REST = 0
-}
-
--- Define songs with note sequences and durations
-local songs = {
-  {
-    title = "Mary Had a Little Lamb",
-    notes = {
-      {note = "E4", duration = 0.5}, {note = "D4", duration = 0.5}, {note = "C4", duration = 0.5}, {note = "D4", duration = 0.5},
-      {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "E4", duration = 1.0},
-      {note = "D4", duration = 0.5}, {note = "D4", duration = 0.5}, {note = "D4", duration = 1.0},
-      {note = "E4", duration = 0.5}, {note = "G4", duration = 0.5}, {note = "G4", duration = 1.0},
-      {note = "E4", duration = 0.5}, {note = "D4", duration = 0.5}, {note = "C4", duration = 0.5}, {note = "D4", duration = 0.5},
-      {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5},
-      {note = "D4", duration = 0.5}, {note = "D4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "D4", duration = 0.5},
-      {note = "C4", duration = 1.0}
-    }
-  },
-  {
-    title = "Twinkle Twinkle Little Star",
-    notes = {
-      {note = "C4", duration = 0.5}, {note = "C4", duration = 0.5}, {note = "G4", duration = 0.5}, {note = "G4", duration = 0.5},
-      {note = "A4", duration = 0.5}, {note = "A4", duration = 0.5}, {note = "G4", duration = 1.0},
-      {note = "F4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5},
-      {note = "D4", duration = 0.5}, {note = "D4", duration = 0.5}, {note = "C4", duration = 1.0},
-      {note = "G4", duration = 0.5}, {note = "G4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "F4", duration = 0.5},
-      {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "D4", duration = 1.0},
-      {note = "G4", duration = 0.5}, {note = "G4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "F4", duration = 0.5},
-      {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "D4", duration = 1.0},
-      {note = "C4", duration = 0.5}, {note = "C4", duration = 0.5}, {note = "G4", duration = 0.5}, {note = "G4", duration = 0.5},
-      {note = "A4", duration = 0.5}, {note = "A4", duration = 0.5}, {note = "G4", duration = 1.0},
-      {note = "F4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "E4", duration = 0.5},
-      {note = "D4", duration = 0.5}, {note = "D4", duration = 0.5}, {note = "C4", duration = 1.0}
-    }
-  },
-  {
-    title = "London Bridge",
-    notes = {
-      {note = "G4", duration = 0.75}, {note = "A4", duration = 0.25}, {note = "G4", duration = 0.5}, {note = "F4", duration = 0.5},
-      {note = "E4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "G4", duration = 1.0},
-      {note = "D4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "F4", duration = 1.0},
-      {note = "E4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "G4", duration = 1.0},
-      {note = "G4", duration = 0.75}, {note = "A4", duration = 0.25}, {note = "G4", duration = 0.5}, {note = "F4", duration = 0.5},
-      {note = "E4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "G4", duration = 1.0},
-      {note = "D4", duration = 0.5}, {note = "G4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "C4", duration = 1.5}
-    }
-  }
-}
+-- Import songs data
+local songsData = require("songs")
+local notes = songsData.notes
+local songs = songsData.songs
+local noteColors = songsData.noteColors
 
 -- UI state
 local selectedSong = 1
@@ -74,6 +16,11 @@ local soundSource = nil
 local font = nil
 local buttonHeight = 40
 local songListHeight = 150
+-- Note visualization parameters
+local visualizationY = 300  -- Increased from 280 to add more space
+local noteWidth = 20
+local noteHeight = 30
+local visualizationWidth = 320
 local buttons = {
   {text = "Play", x = 20, y = 200, width = 80, height = buttonHeight},
   {text = "Stop", x = 120, y = 200, width = 80, height = buttonHeight},
@@ -163,7 +110,7 @@ function love.load()
   font = love.graphics.newFont(14)
   love.graphics.setFont(font)
   love.window.setTitle("Nursery Songs Player")
-  love.window.setMode(400, 300)
+  love.window.setMode(400, 400)  -- Increased height from 380 to accommodate more spacing
 end
 
 function love.update(dt)
@@ -218,9 +165,111 @@ function love.draw()
   -- Draw playing status
   love.graphics.setColor(0.2, 0.2, 0.2)
   local statusText = "Status: " .. (playing and "Playing" or "Stopped")
-  love.graphics.print(statusText, 20, 260)
+  love.graphics.print(statusText, 20, 265)  -- Increased from 255
   if playing then
-    love.graphics.print("Now playing: " .. songs[selectedSong].title, 180, 260)
+    love.graphics.print("Now playing: " .. songs[selectedSong].title, 180, 265)  -- Increased from 255
+  end
+  
+  -- Draw note visualization
+  drawNoteVisualization()
+end
+
+-- Draw visual representation of notes being played
+function drawNoteVisualization()
+  local song = songs[selectedSong]
+  
+  -- Draw visualization background
+  love.graphics.setColor(0.95, 0.95, 0.95)
+  love.graphics.rectangle("fill", 40, visualizationY, visualizationWidth, noteHeight + 20)
+  love.graphics.setColor(0.3, 0.3, 0.3)
+  love.graphics.rectangle("line", 40, visualizationY, visualizationWidth, noteHeight + 20)
+  
+  -- Draw title for visualization
+  love.graphics.setColor(0.2, 0.2, 0.6)
+  love.graphics.printf("Note Visualization", 40, visualizationY - 20, visualizationWidth, "center")
+  
+  -- Draw keyboard-like reference at the bottom
+  local keyWidth = visualizationWidth / 14
+  local keyY = visualizationY + noteHeight + 25
+  local noteNames = {"C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5", "A5", "REST"}
+  
+  for i, noteName in ipairs(noteNames) do
+    local x = 40 + (i-1) * keyWidth
+    -- Draw color indicator
+    love.graphics.setColor(noteColors[noteName])
+    love.graphics.rectangle("fill", x, keyY, keyWidth - 2, 10)
+    love.graphics.setColor(0, 0, 0)
+    love.graphics.rectangle("line", x, keyY, keyWidth - 2, 10)
+    -- Draw note name
+    love.graphics.setColor(0, 0, 0)
+    love.graphics.printf(noteName:gsub("4", ""):gsub("5", ""), x, keyY + 12, keyWidth - 2, "center")
+  end
+  
+  if not playing or #song.notes == 0 then
+    -- If not playing, just show a placeholder
+    love.graphics.setColor(0.5, 0.5, 0.5)
+    love.graphics.printf("Press Play to Start", 40, visualizationY + 10, visualizationWidth, "center")
+    return
+  end
+  
+  -- Draw timeline indicator (vertical line showing current position)
+  love.graphics.setColor(0, 0, 0)
+  love.graphics.line(120, visualizationY, 120, visualizationY + noteHeight)
+  love.graphics.setColor(0.3, 0.3, 0.3)
+  love.graphics.printf("Now", 110, visualizationY + noteHeight + 2, 20, "center")
+  
+  -- Calculate how much of the current note has been played
+  local noteDuration = song.notes[currentNote] and song.notes[currentNote].duration or 0
+  local noteProgress = noteDuration > 0 and 1 - (noteTimer / noteDuration) or 0
+  
+  -- Draw current and upcoming notes
+  local position = 0
+  local startNote = math.max(1, currentNote)
+  local endNote = math.min(#song.notes, currentNote + 10)
+  
+  -- Draw past notes (faded)
+  for i = math.max(1, currentNote - 5), currentNote - 1 do
+    local noteData = song.notes[i]
+    local noteColor = noteColors[noteData.note] or {0.5, 0.5, 0.5}
+    love.graphics.setColor(noteColor[1], noteColor[2], noteColor[3], 0.3)  -- Faded
+    local noteX = 120 - (position + noteData.duration * 40)
+    love.graphics.rectangle("fill", noteX, visualizationY + 5, noteData.duration * 40, noteHeight - 10)
+    position = position + noteData.duration
+  end
+  
+  -- Reset position for current and upcoming notes
+  position = 0
+  
+  -- Draw current note
+  if currentNote > 0 and currentNote <= #song.notes then
+    local noteData = song.notes[currentNote]
+    local noteColor = noteColors[noteData.note] or {0.5, 0.5, 0.5}
+    love.graphics.setColor(noteColor)
+    
+    -- Current note is drawn with a highlight effect
+    love.graphics.rectangle("fill", 120, visualizationY + 5, noteData.duration * 40, noteHeight - 10)
+    love.graphics.setColor(1, 1, 1, 0.7)
+    love.graphics.printf(noteData.note, 120, visualizationY + 10, noteData.duration * 40, "center")
+    
+    position = noteData.duration
+  end
+  
+  -- Draw upcoming notes
+  for i = currentNote + 1, endNote do
+    local noteData = song.notes[i]
+    local noteColor = noteColors[noteData.note] or {0.5, 0.5, 0.5}
+    love.graphics.setColor(noteColor)
+    
+    local noteX = 120 + (position * 40)
+    if noteX < 40 + visualizationWidth then  -- Only draw if visible
+      love.graphics.rectangle("fill", noteX, visualizationY + 5, noteData.duration * 40, noteHeight - 10)
+      love.graphics.setColor(0, 0, 0, 0.7)
+      if noteData.duration > 0.3 then -- Only draw text if there's enough room
+        love.graphics.printf(noteData.note, noteX, visualizationY + 10, noteData.duration * 40, "center")
+      end
+    end
+    
+    position = position + noteData.duration
   end
 end
 
