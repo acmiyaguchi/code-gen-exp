@@ -61,6 +61,40 @@ local songs = {
       {note = "E4", duration = 0.5}, {note = "F4", duration = 0.5}, {note = "G4", duration = 1.0},
       {note = "D4", duration = 0.5}, {note = "G4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "C4", duration = 1.5}
     }
+  },
+  {
+    title = "Moonlight Melody",
+    notes = {
+      -- Opening phrase
+      {note = "G4", duration = 0.75}, {note = "E4", duration = 0.5}, {note = "C4", duration = 0.75},
+      {note = "D4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "G4", duration = 1.0},
+      {note = "REST", duration = 0.25},
+      
+      -- Second phrase - ascending
+      {note = "A4", duration = 0.5}, {note = "G4", duration = 0.25}, {note = "A4", duration = 0.25}, 
+      {note = "B4", duration = 0.5}, {note = "C5", duration = 0.5}, {note = "B4", duration = 0.5},
+      {note = "A4", duration = 0.75}, {note = "REST", duration = 0.25},
+      
+      -- Third phrase - gentle descent
+      {note = "G4", duration = 0.5}, {note = "F4", duration = 0.25}, {note = "E4", duration = 0.75},
+      {note = "D4", duration = 0.5}, {note = "C4", duration = 0.75}, {note = "D4", duration = 0.25},
+      {note = "REST", duration = 0.25},
+      
+      -- Fourth phrase - development
+      {note = "E4", duration = 0.5}, {note = "G4", duration = 0.25}, {note = "A4", duration = 0.75},
+      {note = "G4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "D4", duration = 0.5},
+      {note = "REST", duration = 0.25},
+      
+      -- Fifth phrase - building tension
+      {note = "C4", duration = 0.5}, {note = "E4", duration = 0.5}, {note = "G4", duration = 0.5},
+      {note = "C5", duration = 0.75}, {note = "B4", duration = 0.25}, {note = "A4", duration = 0.5},
+      {note = "REST", duration = 0.25},
+      
+      -- Final phrase - resolution
+      {note = "G4", duration = 0.75}, {note = "E4", duration = 0.5}, {note = "C4", duration = 0.75},
+      {note = "D4", duration = 0.5}, {note = "C4", duration = 1.25},
+      {note = "REST", duration = 0.5}
+    }
   }
 }
 
