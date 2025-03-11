@@ -21,10 +21,14 @@ local visualizationY = 300  -- Increased from 280 to add more space
 local noteWidth = 20
 local noteHeight = 30
 local visualizationWidth = 320
+-- Lyrics display options
+local showFullLyrics = false
+local lyricsY = 390 -- Position for the lyrics display
 local buttons = {
   {text = "Play", x = 20, y = 200, width = 80, height = buttonHeight},
   {text = "Stop", x = 120, y = 200, width = 80, height = buttonHeight},
-  {text = "Restart", x = 220, y = 200, width = 80, height = buttonHeight}
+  {text = "Restart", x = 220, y = 200, width = 80, height = buttonHeight},
+  {text = "Lyrics", x = 320, y = 200, width = 80, height = buttonHeight}  -- New button for toggling lyrics view
 }
 
 -- Generate a sound for a specific note
@@ -110,7 +114,7 @@ function love.load()
   font = love.graphics.newFont(14)
   love.graphics.setFont(font)
   love.window.setTitle("Nursery Songs Player")
-  love.window.setMode(400, 400)  -- Increased height from 380 to accommodate more spacing
+  love.window.setMode(400, 530)  -- Increased height to accommodate the lyrics view
 end
 
 function love.update(dt)
@@ -172,6 +176,11 @@ function love.draw()
   
   -- Draw note visualization
   drawNoteVisualization()
+  
+  -- Draw lyrics if playing or if full lyrics view is enabled
+  if playing or showFullLyrics then
+    drawLyrics()
+  end
 end
 
 -- Draw visual representation of notes being played
@@ -273,6 +282,112 @@ function drawNoteVisualization()
   end
 end
 
+-- Draw the lyrics for the current song
+function drawLyrics()
+  local song = songs[selectedSong]
+  if not song.lyrics then return end
+
+  love.graphics.setColor(0.2, 0.2, 0.6)
+  love.graphics.printf("Lyrics", 40, lyricsY - 20, visualizationWidth, "center")
+  
+  -- Create a lyrics display area
+  love.graphics.setColor(0.95, 0.95, 0.95)
+  love.graphics.rectangle("fill", 40, lyricsY, visualizationWidth, showFullLyrics and 120 or 30)
+  love.graphics.setColor(0.3, 0.3, 0.3)
+  love.graphics.rectangle("line", 40, lyricsY, visualizationWidth, showFullLyrics and 120 or 30)
+  
+  if showFullLyrics then
+    -- Show complete lyrics, with the current part highlighted
+    local fullText = ""
+    local highlightStart, highlightEnd = 0, 0
+    local currentPosition = 0
+    local totalWidth = 0
+    
+    -- Build the complete lyrics text and determine highlight positions
+    for i, lyric in ipairs(song.lyrics) do
+      if i > 1 then
+        fullText = fullText .. " "
+        currentPosition = currentPosition + 1
+      end
+      
+      if lyric.startNote <= currentNote and 
+         (i == #song.lyrics or song.lyrics[i+1].startNote > currentNote) then
+        highlightStart = currentPosition
+        highlightEnd = currentPosition + #lyric.text
+      end
+      
+      fullText = fullText .. lyric.text
+      currentPosition = currentPosition + #lyric.text
+    end
+    
+    -- Draw the full text with proper wrapping
+    love.graphics.setColor(0.2, 0.2, 0.2)
+    local text = love.graphics.newText(font, fullText)
+    love.graphics.printf(fullText, 50, lyricsY + 10, visualizationWidth - 20, "left")
+    
+    -- Draw highlight under current lyric if playing
+    if playing and highlightStart > 0 then
+      -- We need to calculate the position based on the wrapped text
+      -- This is simplified and might need adjustment for more precise highlighting
+      local firstLine = fullText:sub(1, highlightStart)
+      local currentWord = fullText:sub(highlightStart + 1, highlightEnd)
+      local y = lyricsY + 10
+      
+      -- Count lines to determine Y position
+      local lines = 0
+      for _ in firstLine:gmatch("\n") do
+        lines = lines + 1
+      end
+      y = y + (lines * font:getHeight())
+      
+      -- Calculate X position (approximate)
+      local prefix = firstLine:match("([^\n]*)$") or ""
+      local x = 50 + font:getWidth(prefix)
+      
+      -- Draw the highlight
+      love.graphics.setColor(0.8, 0.8, 1.0, 0.5)
+      love.graphics.rectangle("fill", x, y, font:getWidth(currentWord), font:getHeight())
+    end
+  else
+    -- Show current and upcoming lyrics only (sliding view)
+    local currentLyric = ""
+    local nextLyric = ""
+    local previousLyric = ""
+    
+    for i, lyric in ipairs(song.lyrics) do
+      if lyric.startNote == currentNote then
+        currentLyric = lyric.text
+        if i < #song.lyrics then
+          nextLyric = song.lyrics[i+1].text
+        end
+        if i > 1 then
+          previousLyric = song.lyrics[i-1].text
+        end
+        break
+      elseif lyric.startNote > currentNote then
+        if nextLyric == "" then
+          nextLyric = lyric.text
+        end
+        break
+      else
+        previousLyric = lyric.text
+      end
+    end
+    
+    -- Draw previous lyric (faded)
+    love.graphics.setColor(0.4, 0.4, 0.4, 0.5)
+    love.graphics.printf(previousLyric, 60, lyricsY + 8, 80, "right")
+    
+    -- Draw current lyric (highlighted)
+    love.graphics.setColor(0, 0, 0.8)
+    love.graphics.printf(currentLyric, 150, lyricsY + 8, 100, "center")
+    
+    -- Draw next lyric (normal)
+    love.graphics.setColor(0.4, 0.4, 0.4)
+    love.graphics.printf(nextLyric, 260, lyricsY + 8, 100, "left")
+  end
+end
+
 function love.mousepressed(x, y, button)
   if button == 1 then
     -- Check if a song was selected
@@ -298,6 +413,8 @@ function love.mousepressed(x, y, button)
           stopPlaying()
         elseif i == 3 then -- Restart
           restartPlaying()
+        elseif i == 4 then -- Toggle lyrics view
+          showFullLyrics = not showFullLyrics
         end
         return
       end
@@ -314,6 +431,9 @@ function love.keypressed(key)
     end
   elseif key == "r" then
     restartPlaying()
+  elseif key == "l" then
+    -- Toggle lyrics display mode
+    showFullLyrics = not showFullLyrics
   elseif key == "up" or key == "down" then
     local change = key == "up" and -1 or 1
     selectedSong = selectedSong + change
