@@ -9,50 +9,83 @@ A technical demonstration of LÖVE2D's physics capabilities through a streamline
 - Provide a playable 9-ball pool experience with minimal assets
 - Create a clear visual representation of physics principles in action
 
+## Architecture
+
+The application follows an object-oriented design with the following main components:
+
+### Game
+- Central controller that manages the game state and coordinates all game objects
+- Handles game loop (update and draw cycles)
+- Manages physics world and collision callbacks
+- Processes input and routes it to the appropriate objects
+- Controls game state transitions (aiming, shooting, waiting, gameover)
+
+### Ball
+- Represents a pool ball with physics properties
+- Handles rendering and movement
+- Includes simplified physics damping to simulate friction
+- Supports basic spin (english) effects
+- Tracks pocketed state and handles resets
+
+### Table
+- Manages the pool table representation
+- Creates cushions (edges) with appropriate physics properties
+- Implements pockets using sensor fixtures
+- Handles visual rendering of the table surface
+
+### Player
+- Controls for aiming and striking the cue ball
+- Supports power control through drag distance
+- Implements simple spin control through keyboard input
+- Visualizes aiming line and cue stick
+
 ## Physics Implementation
 
-### Physics Engine Focus
-- Ball-to-ball collision demonstrations with proper momentum
-- Basic friction simulation for the table surface
-- Simplified spin effects (english) to demonstrate rotational physics
-- Accurate cushion rebounds to show angle conservation
-- Demonstration of velocity decay through linear damping
+### Physics Engine Highlights
+- Ball-to-ball collisions with proper momentum transfer
+- Surface friction simulated through linear damping
+- Cushion rebounds with appropriate restitution values
+- Velocity decay to simulate rolling resistance
+- Pocket detection using sensor fixtures
+- Zero gravity physics world for top-down simulation
 
 ### Ball Properties
 - 10 balls total (cue ball + 9 numbered balls)
-- Consistent mass and size properties for predictable physics
-- Simple colored circles with numbers (no detailed textures required)
+- Consistent mass and size properties
+- Restitution ~0.9 for realistic bounce
+- Linear damping ~1.0 for table friction
+- Angular damping ~0.8 for spin decay
 
-## Technical Specifications
+### Control System
+- Mouse-based aiming and power control
+- Visual feedback through cue stick animation
+- Power meter display during aiming
+- Spin indicator for user feedback
+- Debug visualization toggle
 
-### LÖVE2D Physics Implementation
-- Utilize `love.physics` for all collision and movement
-- World setup with zero gravity for top-down simulation
-- CircleShape bodies for balls with appropriate:
-  - Density (~1.0)
-  - Restitution (~0.9) for realistic bounce
-  - Angular and linear damping to simulate friction
-- Static EdgeShape bodies for table cushions
-- Sensor fixtures for pockets
-- Custom collision callbacks for gameplay logic
+## Game States
+1. **Aiming** - Player is positioning the cue stick
+2. **Shooting** - Balls are in motion after a shot
+3. **Waiting** - A pause after the cue ball is pocketed
+4. **Game Over** - All numbered balls have been pocketed
 
-### Minimal Implementation Strategy
-- Physics-focused architecture with simple visuals
-- Placeholder graphics with emphasis on physics visualization
-- Debug rendering options to show collision bodies and vectors
-- Limited use of complex coding abstractions
+## Technical Implementation Details
 
-## Player Interaction
-- Mouse aiming with visible trajectory line
-- Power control via click-and-drag
-- Basic english/spin application through key modifiers
-- Restart option after completion
+### Input Handling
+- Mouse position tracking for aim direction
+- Click-and-drag for power control
+- Keyboard input for spin and game control
+- Separate input handlers for each game state
 
-## Development Priorities
-1. Accurate physics simulation
-2. Responsive ball control
-3. Functional gameplay loop
-4. Clear visualization of physics properties
-5. Basic UI for player feedback
+### Rendering
+- Layered rendering approach (table → balls → UI elements)
+- Debug visualization options
+- Simple color-based visual styling
+- Dynamic positioning of game elements
+
+### Collision Detection
+- Custom collision callbacks for pocket detection
+- User data for identifying colliding objects
+- Simplified collision response for realistic physics
 
 This technical demo prioritizes demonstrating LÖVE2D's physics capabilities while providing a functional pool game experience with minimal asset requirements.

@@ -1,6 +1,15 @@
+-- Player.lua
+-- Handles player input and cue stick control
+
 local Player = {}
 Player.__index = Player
 
+--[[
+    Creates a new player controller
+    
+    @param cueBall - The cue ball object to control
+    @return Player instance
+]]
 function Player:new(cueBall)
     local player = {}
     setmetatable(player, self)
@@ -8,10 +17,10 @@ function Player:new(cueBall)
     player.cueBall = cueBall
     player.aiming = false
     player.power = 0
-    player.maxPower = 300  -- Reduced from 1000 to 300
+    player.maxPower = 300
     player.angle = 0
     player.cueLength = 150
-    player.spin = 0  -- For english (side spin)
+    player.spin = 0  -- For english (side spin): -1 (left), 0 (none), 1 (right)
     
     -- Coordinates for aiming
     player.startX = 0
@@ -22,6 +31,9 @@ function Player:new(cueBall)
     return player
 end
 
+--[[
+    Updates player aiming based on mouse position
+]]
 function Player:update(dt)
     if not self.aiming then
         -- Update aim line to follow mouse when not actively aiming
@@ -33,6 +45,9 @@ function Player:update(dt)
     end
 end
 
+--[[
+    Renders the aiming line, cue stick and power indicator
+]]
 function Player:draw()
     local ballX, ballY = self.cueBall.body:getPosition()
     
@@ -47,8 +62,9 @@ function Player:draw()
     love.graphics.setLineWidth(1)
     love.graphics.line(ballX, ballY, endX, endY)
     
-    -- Draw cue stick
+    -- Draw cue stick when aiming
     if self.aiming then
+        -- Draw cue stick
         love.graphics.setColor(0.8, 0.6, 0.2)
         local cueDistance = 10 + self.power / 10  -- Pull back cue based on power
         local cueStartX = ballX + math.cos(self.angle) * cueDistance
@@ -74,6 +90,9 @@ function Player:draw()
     love.graphics.setLineWidth(1)
 end
 
+--[[
+    Handles mouse press to begin aiming
+]]
 function Player:mousepressed(x, y, button)
     if button == 1 then  -- Left click
         local ballX, ballY = self.cueBall.body:getPosition()
@@ -89,15 +108,16 @@ function Player:mousepressed(x, y, button)
     end
 end
 
+--[[
+    Handles mouse release to take a shot
+    @return boolean - true if shot was taken
+]]
 function Player:mousereleased(x, y, button)
     if button == 1 and self.aiming then  -- Left click release
         self.endX = x
         self.endY = y
         
-        -- Apply force to the ball
-        local ballX, ballY = self.cueBall.body:getPosition()
-        
-        -- Create a force in the direction opposite of the angle
+        -- Apply force to the ball in the direction opposite of the angle
         local forceX = math.cos(self.angle) * -self.power
         local forceY = math.sin(self.angle) * -self.power
         
@@ -109,6 +129,9 @@ function Player:mousereleased(x, y, button)
     return false
 end
 
+--[[
+    Handles mouse movement to update aim and power
+]]
 function Player:mousemoved(x, y, dx, dy)
     if self.aiming then
         local ballX, ballY = self.cueBall.body:getPosition()
@@ -121,11 +144,14 @@ function Player:mousemoved(x, y, dx, dy)
         local distY = y - self.startY
         local distance = math.sqrt(distX * distX + distY * distY)
         
-        -- Limit power to maxPower with reduced factor (2 instead of 5)
+        -- Limit power to maxPower
         self.power = math.min(distance * 2, self.maxPower)
     end
 end
 
+--[[
+    Handles keyboard input for spin control
+]]
 function Player:keypressed(key)
     -- Apply english (side spin)
     if key == "left" then

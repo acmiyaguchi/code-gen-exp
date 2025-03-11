@@ -1,6 +1,15 @@
+-- Table.lua
+-- Represents a pool table with cushions and pockets
+
 local Table = {}
 Table.__index = Table
 
+--[[
+    Creates a new pool table with physics properties
+    
+    @param world - The physics world to add the table to
+    @return Table instance
+]]
 function Table:new(world)
     local tableObj = {}
     setmetatable(tableObj, self)
@@ -16,25 +25,27 @@ function Table:new(world)
     -- Create table boundaries (cushions)
     tableObj.edges = {}
     
-    -- Define the edge coordinates (top, right, bottom, left)
+    -- Define the edge coordinates with gaps for pockets
+    -- Format: {startX, startY, endX, endY}
     local edges = {
-        -- Top left to top right
+        -- Top edge (with pocket gaps)
         {tableObj.x + 30, tableObj.y, tableObj.x + tableObj.width/2 - 20, tableObj.y},
         {tableObj.x + tableObj.width/2 + 20, tableObj.y, tableObj.x + tableObj.width - 30, tableObj.y},
         
-        -- Top right to bottom right
+        -- Right edge (with pocket gaps)
         {tableObj.x + tableObj.width, tableObj.y + 30, tableObj.x + tableObj.width, tableObj.y + tableObj.height/2 - 20},
         {tableObj.x + tableObj.width, tableObj.y + tableObj.height/2 + 20, tableObj.x + tableObj.width, tableObj.y + tableObj.height - 30},
         
-        -- Bottom right to bottom left
+        -- Bottom edge (with pocket gaps)
         {tableObj.x + tableObj.width - 30, tableObj.y + tableObj.height, tableObj.x + tableObj.width/2 + 20, tableObj.y + tableObj.height},
         {tableObj.x + tableObj.width/2 - 20, tableObj.y + tableObj.height, tableObj.x + 30, tableObj.y + tableObj.height},
         
-        -- Bottom left to top left
+        -- Left edge (with pocket gaps)
         {tableObj.x, tableObj.y + tableObj.height - 30, tableObj.x, tableObj.y + tableObj.height/2 + 20},
         {tableObj.x, tableObj.y + tableObj.height/2 - 20, tableObj.x, tableObj.y + 30}
     }
     
+    -- Create each edge as a physics object
     for _, v in ipairs(edges) do
         local edge = {}
         edge.body = love.physics.newBody(world, 0, 0, "static")
@@ -48,7 +59,7 @@ function Table:new(world)
     -- Create pockets (6 pockets at corners and mid-points of long sides)
     tableObj.pockets = {}
     local pocketPositions = {
-        {tableObj.x, tableObj.y},                          -- Top left
+        {tableObj.x, tableObj.y},                             -- Top left
         {tableObj.x + tableObj.width/2, tableObj.y},          -- Top middle
         {tableObj.x + tableObj.width, tableObj.y},            -- Top right
         {tableObj.x, tableObj.y + tableObj.height},           -- Bottom left
@@ -56,12 +67,13 @@ function Table:new(world)
         {tableObj.x + tableObj.width, tableObj.y + tableObj.height}    -- Bottom right
     }
     
+    -- Create each pocket as a sensor
     for _, pos in ipairs(pocketPositions) do
         local pocket = {}
         pocket.body = love.physics.newBody(world, pos[1], pos[2], "static")
         pocket.shape = love.physics.newCircleShape(18)  -- Pocket radius
         pocket.fixture = love.physics.newFixture(pocket.body, pocket.shape)
-        pocket.fixture:setSensor(true)  -- Pockets are sensors
+        pocket.fixture:setSensor(true)  -- Pockets are sensors (detect but don't collide)
         pocket.fixture:setUserData("pocket")
         table.insert(tableObj.pockets, pocket)
     end
@@ -69,8 +81,11 @@ function Table:new(world)
     return tableObj
 end
 
+--[[
+    Renders the table, cushions and pockets
+]]
 function Table:draw()
-    -- Draw table background
+    -- Draw table background (felt)
     love.graphics.setColor(self.color)
     love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
     
@@ -89,7 +104,7 @@ function Table:draw()
         love.graphics.circle("fill", pocket.body:getX(), pocket.body:getY(), pocket.shape:getRadius())
     end
     
-    -- Draw boundary line for placing the cue ball
+    -- Draw boundary line for placing the cue ball (head string)
     love.graphics.setColor(1, 1, 1, 0.2)
     love.graphics.line(self.x + self.width/4, self.y, self.x + self.width/4, self.y + self.height)
 end
