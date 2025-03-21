@@ -83,9 +83,17 @@ describe("Unification", function()
     -- This would create an infinite recursive structure
     local p = mk.pair(mk.val(5), x)
     
-    -- This should fail with a proper occurrence check
-    -- Note: the current implementation doesn't perform occurrence check
-    -- so this test is marked as pending
-    pending("should implement variable occurrence check")
+    -- With a proper occurrence check, this should fail
+    local s = mk.unify(x, p, {})
+    assert.is_nil(s, "Unification should fail due to occurs check")
+    
+    -- Also test the occurs_check function directly
+    assert.is_true(mk.occurs_check(x, p, {}), "Occurs check should detect variable in term")
+    
+    -- Verify that non-circular unification still works
+    local y = mk.var(2)
+    local q = mk.pair(mk.val(5), y)
+    local s2 = mk.unify(x, q, {})
+    assert.is_not_nil(s2, "Unification without circular reference should succeed")
   end)
 end)

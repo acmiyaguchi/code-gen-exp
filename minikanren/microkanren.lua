@@ -57,6 +57,23 @@ function M.walk(u, s)
   return u
 end
 
+-- Occurs check to prevent circular references
+function M.occurs_check(x, v, s)
+  -- Walk to get the actual value
+  v = M.walk(v, s)
+  
+  -- If v is a variable, check direct equality
+  if M.is_var(v) then
+    return M.var_eq(x, v)
+  -- If v is a pair, recursively check both sides
+  elseif M.is_pair(v) then
+    return M.occurs_check(x, v.left, s) or M.occurs_check(x, v.right, s)
+  -- Value terms can't contain variables
+  else
+    return false
+  end
+end
+
 -- Extend a substitution with a new binding
 function M.ext_s(x, v, s)
   return {{x, v}, table.unpack(s)}
@@ -70,8 +87,16 @@ function M.unify(u, v, s)
   if M.is_var(u) and M.is_var(v) and M.var_eq(u, v) then
     return s
   elseif M.is_var(u) then
+    -- Add occurs check to prevent circular references
+    if M.occurs_check(u, v, s) then
+      return nil
+    end
     return M.ext_s(u, v, s)
   elseif M.is_var(v) then
+    -- Add occurs check to prevent circular references
+    if M.occurs_check(v, u, s) then
+      return nil
+    end
     return M.ext_s(v, u, s)
   elseif M.is_pair(u) and M.is_pair(v) then
     local s_prime = M.unify(u.left, v.left, s)
