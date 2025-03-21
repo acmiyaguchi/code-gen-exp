@@ -3,44 +3,27 @@ local mk = require("../../microkanren")
 
 local M = {}
 
--- Helper functions for list operations
+-- Helper function to convert Lua array to microKanren list
 local function make_list(arr)
-  local result = mk.val(nil)  -- Explicit nil for end of list
+  local result = mk.val(nil)
   for i = #arr, 1, -1 do
     result = mk.pair(mk.val(arr[i]), result)
   end
   return result
 end
 
-local function safe_tostring(val)
-  if val == nil then
-    return "nil"
-  elseif type(val) == "boolean" then
-    return val and "true" or "false"
-  else
-    return tostring(val)
-  end
-end
-
--- DIRECT IMPLEMENTATION (for validation and testing only)
--- This is NOT the logic programming solution, but useful for testing
+-- Direct implementation for validation
 function M.direct_last(arr)
-  if #arr == 0 then
-    return nil -- Empty list has no last element
-  end
-  
-  -- Simply return the last element of the array
-  return arr[#arr]
+  return #arr > 0 and arr[#arr] or nil
 end
 
--- LOGIC PROGRAMMING IMPLEMENTATION
--- Relation that holds when 'last' is the last element of list 'lst'
+-- Logic relation: last(list, elem) succeeds when elem is the last element of list
 function M.lasto(lst, last)
-  -- Base case: For a list with a single element [X], X is the last element
-  local base_case = mk["=="](lst, mk.pair(last, mk.val(nil)))
+  -- Base case: [X] -> X is last
+  local base = mk["=="](lst, mk.pair(last, mk.val(nil)))
   
-  -- Recursive case: For a list [H|T], the last element is the last element of T
-  local recursive_case = mk.call_fresh(function(head)
+  -- Recursive case: [H|T] -> last(T, Last)
+  local rec = mk.call_fresh(function(head)
     return mk.call_fresh(function(tail)
       return mk.conj(
         mk["=="](lst, mk.pair(head, tail)),
@@ -49,68 +32,32 @@ function M.lasto(lst, last)
     end)
   end)
   
-  -- A list's last element is either from the base case or the recursive case
-  return mk.disj(base_case, recursive_case)
+  return mk.disj(base, rec)
 end
 
--- Logic-based runner function
+-- Run the logic query and extract the result
 function M.run_last_logic(arr)
-  -- Handle empty list case
-  if #arr == 0 then
-    return nil
-  end
+  if #arr == 0 then return nil end
   
-  -- Transform the array into a microKanren list
   local lst = make_list(arr)
+  local q = mk.var(0)
+  local goal = M.lasto(lst, q)
+  local results = mk.take(1, goal(mk.empty_state()))
   
-  -- Create a logic variable for the result
-  local result_var = mk.var(0)
-  
-  -- Create an empty state
-  local state = mk.empty_state()
-  
-  -- Run the goal
-  local stream = M.lasto(lst, result_var)(state)
-  
-  -- Get the first result
-  local results = mk.take(1, stream)
-  
-  -- Debugging output
-  print("Running logic query for input: " .. table.concat(Array.map(arr, safe_tostring), ", "))
-  print("Stream results count: " .. #results)
-  
-  -- Extract the result if available
   if #results > 0 then
-    local result = mk.walk(result_var, results[1][1])
+    local result = mk.walk(q, results[1][1])
     if result.type == "val" then
-      print("Found logic result: " .. safe_tostring(result.value))
       return result.value
-    else
-      print("Result was not a value: " .. result.type)
     end
   end
   
-  -- If the logic query fails, fall back to the direct implementation
-  -- In a production environment, you would want to throw an error
-  -- instead of falling back to the direct implementation
-  print("Falling back to direct implementation")
+  -- Fallback to direct implementation
   return M.direct_last(arr)
 end
 
--- The main interface function
--- Uses the logic-based implementation
+-- Main interface function
 function M.run_last(arr)
   return M.run_last_logic(arr)
-end
-
--- Utility functions
-Array = {}
-function Array.map(arr, fn)
-  local result = {}
-  for i, v in ipairs(arr) do
-    result[i] = fn(v)
-  end
-  return result
 end
 
 return M
