@@ -40,7 +40,7 @@ print(result.value) -- Outputs: 5
 ### Using Built-in Problem Solvers
 
 ```lua
-local problem1 = require("problems.problem1")
+local problem1 = require("problems.p01.main")
 
 -- Find the last element of a list
 local last = problem1.run_last({1, 2, 3, 4, 5})
@@ -50,10 +50,13 @@ print(last) -- Outputs: 5
 ## Project Structure
 
 - `microkanren.lua` - Core implementation of the microKanren system
-- `problems/` - Solutions to the 99 Prolog Problems 
-- `tests/` - Unit tests for both core functionality and problem solutions
+- `microkanren_spec.lua` - Tests for the core functionality
 - `init.lua` - Initialization file for the library
-- `run_tests.lua` - Script to run all tests
+- `problems/` - Solutions to the 99 Prolog Problems
+  - `README.md` - List of all 99 Prolog problems
+  - `p01/` - Problem 1: Find the last element of a list
+    - `main.lua` - Problem implementation
+    - `main_spec.lua` - Tests for problem implementation
 
 ## Running Tests
 
@@ -64,9 +67,16 @@ We use the Busted testing framework for running tests. To run the tests, follow 
     luarocks install busted
     ```
 
-2. Run the tests using the provided test runner script:
+2. Run the tests using busted directly:
     ```bash
-    busted tests
+    # Run core tests
+    busted microkanren_spec.lua
+    
+    # Run problem tests
+    busted problems/p01/main_spec.lua
+    
+    # Or run all tests at once
+    busted .
     ```
 
 ## Acknowledgments
