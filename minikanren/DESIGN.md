@@ -46,59 +46,125 @@ The project is structured into the following components:
 * Problem solutions are defined as microKanren goals, utilizing the core functions.
 * Data structures (lists, etc.) are represented using Lua tables.
 
-### 3.3. Unit Tests
+## 4. Implementation Requirements
 
-* The Busted testing framework is used for unit testing.
-* Tests are organized into files corresponding to the core and problem modules within the `tests/` directory.
-* Tests cover various scenarios, including successful cases, failure cases, boundary cases, and multiple solutions.
+### 4.1. Logic Programming Requirement
 
-## 4. Implementation Details
+**All problem solutions in this repository MUST be solved using the logic programming capabilities provided by the MicroKanren implementation.** This is a strict requirement for all problems.
 
-### 4.1. Data Representation
+### 4.2. Why Logic Programming?
+
+The purpose of this collection is to solve the 99 Prolog problems using the MicroKanren logic programming system. By implementing solutions with MicroKanren, we gain several benefits:
+
+1. Better understanding of logic programming concepts
+2. Practice with relational thinking
+3. Experience with non-deterministic computation
+4. Deeper knowledge of unification and constraint satisfaction
+
+### 4.3. Implementation Strategy
+
+For each problem, you should:
+
+1. Implement a core solution using MicroKanren's logic programming primitives
+2. Test the solution with appropriate test cases
+
+Your solution must use MicroKanren's:
+- Logic variables (mk.var)
+- Unification (mk["=="])
+- Goal combinators (mk.conj, mk.disj)
+- Fresh variable creation (mk.call_fresh)
+
+### 4.4. Direct Implementation vs. Logic Implementation
+
+It is acceptable and often useful to have a direct, non-logic-based implementation alongside your logic implementation for:
+
+- Generating test cases
+- Validating results
+- Performance comparisons
+
+However, the direct implementation should be clearly marked as a helper function and **CANNOT** be considered the actual solution to the problem. The real solution must use logic programming.
+
+Example structure:
+```lua
+-- Direct implementation (for testing/validation only)
+function M.direct_last(arr)
+  return arr[#arr]
+end
+
+-- Logic-based implementation (the actual solution)
+function M.last_element(lst, last)
+  -- Your logic programming solution using microkanren primitives
+end
+
+-- Runner function that uses logic programming
+function M.run_last(arr)
+  -- Convert input to logic form
+  local lst = make_list(arr)
+  local last_var = mk.var(0)
+  
+  -- Run the logic solution
+  local state = mk.empty_state()
+  local stream = M.last_element(lst, last_var)(state)
+  local results = mk.take(1, stream)
+  
+  -- Return result
+  if #results > 0 then
+    local result = mk.walk(last_var, results[1][1])
+    if result.type == "val" then
+      return result.value
+    end
+  end
+  return nil
+end
+```
+
+## 5. Data Representation
 
 * **Lists:** Represented as Lua tables (e.g., `{1, 2, 3}`).
 * **Variables:** Represented as `{type = "var", id = <unique_id>}`.
 * **Values:** Represented as `{type = "val", value = <value>}`.
 * **Pairs:** Represented as `{type = "pair", left = <term>, right = <term>}`.
 
-### 4.2. Stream Implementation
+## 6. Stream Implementation
 
 * Lua coroutines are used to implement lazy streams, enabling efficient generation of solutions.
 
-### 4.3. Unification
+## 7. Unification
 
 * The `unify` function implements the core unification algorithm, handling variable binding and term comparison.
 
-### 4.4. Goal Combinators
+## 8. Goal Combinators
 
 * `conj` and `disj` provide the ability to combine goals using logical AND and OR operators.
 * `call_fresh` introduces new logic variables into the goal evaluation.
 
-## 5. Testing Strategy
+## 9. Testing Strategy
 
 * **MicroKanren Core Tests:** Verify the correctness of the core functions, including unification, stream operations, and goal combinators.
 * **Problem Solution Tests:** Ensure that each problem solution produces the expected results for various inputs.
 * **Test Coverage:** Aim for comprehensive test coverage, including edge cases and boundary conditions.
 * **Continuous Integration:** Integrate automated testing into a CI pipeline (e.g., GitHub Actions) to ensure code quality.
 
-## 6. Project Structure
+## 10. Project Structure
 
 ```
 microkanren-lua/
 ├── microkanren.lua
+├── init.lua
+├── microkanren_spec.lua
 ├── problems/
-│   ├── problem1.lua
-│   ├── problem2.lua
+│   ├── README.md
+│   ├── IMPLEMENTATION_RULES.md
+│   ├── p01/
+│   │   ├── main.lua
+│   │   └── main_spec.lua
+│   ├── p02/
+│   │   ├── main.lua
+│   │   └── main_spec.lua
 │   └── ...
-├── tests/
-│   ├── test_microkanren.lua
-│   ├── test_problem1.lua
-│   ├── test_problem2.lua
-│   └── ...
-└── busted.lua
 ```
 
-## 7. Development Process
+## 11. Development Process
 
 1.  **Implement the microKanren core.**
 2.  **Write unit tests for the core.**
@@ -108,7 +174,7 @@ microkanren-lua/
 6.  **Integrate with a CI/CD pipeline.**
 7.  **Document the code and project.**
 
-## 8. Future Enhancements
+## 12. Future Enhancements
 
 * **Performance Optimization:** Profile and optimize the microKanren implementation for performance.
 * **Constraint Logic Programming:** Extend the microKanren implementation to support constraint logic programming.
@@ -116,6 +182,6 @@ microkanren-lua/
 * **Documentation:** Create thorough documentation for the project.
 * **Examples:** Create more usage examples for the microkanren library.
 
-## 9. Conclusion
+## 13. Conclusion
 
-This design document provides a roadmap for implementing a microKanren system in Lua and solving the 99 Prolog problems. By adhering to this design, we aim to create a robust, maintainable, and well-tested logic programming system.
+This design document provides a roadmap for implementing a microKanren system in Lua and solving the 99 Prolog problems. By adhering to this design and the implementation requirements, we aim to create a robust, maintainable, and well-tested logic programming system that properly leverages the power of relational programming.

@@ -1,5 +1,7 @@
 # Implementation Rules for MicroKanren Problems
 
+> **Note:** This document describes the specific implementation requirements for problem solutions. For a complete overview of the project design and architecture, please refer to the main [DESIGN.md](/DESIGN.md) document in the project root.
+
 ## Logic Programming Requirement
 
 All problem solutions in this repository **MUST** be solved using the logic programming capabilities provided by the MicroKanren implementation at the root of this project. This is a strict requirement for all problems.
