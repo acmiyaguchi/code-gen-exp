@@ -11,6 +11,7 @@ A Love2D application that procedurally generates pixel art of the three starter 
 ## Controls
 
 - **Left/Right Arrow Keys or A/D:** Cycle between Pokémon
+- **Up/Down Arrow Keys or W/S:** Change pixel resolution (16×16, 32×32, 64×64)
 - **Space:** Regenerate the current Pokémon with new variations
 - **Enter/P or Mouse Click:** Toggle between Pokémon and Pokéball
 

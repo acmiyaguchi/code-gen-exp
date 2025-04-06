@@ -5,6 +5,7 @@ A Love2D application that procedurally generates pixel art versions of the three
 
 ## Features
 - Procedural generation of pixel art for Charmander, Bulbasaur, and Squirtle
+- Variable pixel resolution (16×16, 32×32, 64×64) for more detailed art
 - Ability to cycle through different Pokémon using keyboard or mouse
 - Animated transition between Pokémon and Pokeball
 - Color palette customization options

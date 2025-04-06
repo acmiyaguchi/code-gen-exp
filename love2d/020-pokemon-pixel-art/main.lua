@@ -5,6 +5,8 @@ local animationTimer = 0
 local animationDuration = 0.5
 local pixels = {}
 local pokeballPixels = {}
+local gridSizes = {16, 32, 64}
+local currentGridSize = 2  -- Default to 32x32
 
 -- Colors for each Pokemon
 local colors = {
@@ -58,7 +60,7 @@ end
 -- Generate pokeball pixels
 function generatePokeball()
   pokeballPixels = {}
-  local gridSize = 16
+  local gridSize = gridSizes[currentGridSize]
   local cellSize = 800 / gridSize
   
   for y = 1, gridSize do
@@ -66,7 +68,7 @@ function generatePokeball()
       local centerX, centerY = gridSize/2, gridSize/2
       local distFromCenter = math.sqrt((x - centerX)^2 + (y - centerY)^2)
       
-      if distFromCenter < gridSize/2 - 1 then
+      if distFromCenter < gridSize/2 - gridSize/16 then
         local color
         if y < gridSize/2 then
           color = pokeballColors.top
@@ -75,7 +77,7 @@ function generatePokeball()
         end
         
         -- Add outline
-        if distFromCenter > gridSize/2 - 2 or math.abs(y - gridSize/2) < 1 then
+        if distFromCenter > gridSize/2 - gridSize/8 or math.abs(y - gridSize/2) < gridSize/16 then
           color = pokeballColors.outline
         end
         
@@ -98,7 +100,7 @@ end
 -- Generate Pokemon pixels based on selected type
 function generatePokemon(pokemonIndex)
   pixels = {}
-  local gridSize = 16
+  local gridSize = gridSizes[currentGridSize]
   local cellSize = 800 / gridSize
   local pokemonSeed = love.math.random(1, 1000)
   
@@ -117,27 +119,34 @@ end
 -- Generate Bulbasaur
 function generateBulbasaur(gridSize, cellSize, seed)
   local color = colors[1]
+  local scale = gridSize / 16  -- Scale factor based on 16x16 grid
   
   for y = 1, gridSize do
     for x = 1, gridSize do
       -- Basic shape for Bulbasaur
-      local centerX, centerY = gridSize/2, gridSize/2 + 2
-      local bulbCenterX, bulbCenterY = gridSize/2, gridSize/2 - 2
+      local centerX, centerY = gridSize/2, gridSize/2 + 2 * scale
+      local bulbCenterX, bulbCenterY = gridSize/2, gridSize/2 - 2 * scale
       local distFromCenter = math.sqrt((x - centerX)^2 + (y - centerY)^2)
       local distFromBulb = math.sqrt((x - bulbCenterX)^2 + (y - bulbCenterY)^2)
       
       -- Body
-      if distFromCenter < 3.5 + noise(x, y, seed) * 0.5 then
+      if distFromCenter < 3.5 * scale + noise(x/scale, y/scale, seed) * 0.5 * scale then
         local pixelColor = color.body
         
         -- Add random spots
-        if noise(x*3, y*3, seed + 10) > 0.7 then
+        if noise(x*3/scale, y*3/scale, seed + 10) > 0.7 then
           pixelColor = color.spots
         end
         
         -- Add eyes
-        if (x == centerX - 2 and y == centerY - 1) or 
-           (x == centerX + 2 and y == centerY - 1) then
+        local eyeOffsetX = 2 * scale
+        local eyeOffsetY = 1 * scale
+        local eyeSize = math.max(1, scale / 2)  -- Ensure eye size scales appropriately
+        
+        if (math.abs(x - (centerX - eyeOffsetX)) < eyeSize and
+            math.abs(y - (centerY - eyeOffsetY)) < eyeSize) or 
+           (math.abs(x - (centerX + eyeOffsetX)) < eyeSize and
+            math.abs(y - (centerY - eyeOffsetY)) < eyeSize) then
           pixelColor = color.eye
         end
         
@@ -150,7 +159,8 @@ function generateBulbasaur(gridSize, cellSize, seed)
       end
       
       -- Bulb on back
-      if distFromBulb < 2.5 + noise(x, y, seed + 5) * 0.3 and y < bulbCenterY + 2 then
+      if distFromBulb < 2.5 * scale + noise(x/scale, y/scale, seed + 5) * 0.3 * scale and 
+         y < bulbCenterY + 2 * scale then
         table.insert(pixels, {
           x = x,
           y = y,
@@ -165,25 +175,32 @@ end
 -- Generate Charmander
 function generateCharmander(gridSize, cellSize, seed)
   local color = colors[2]
+  local scale = gridSize / 16  -- Scale factor based on 16x16 grid
   
   for y = 1, gridSize do
     for x = 1, gridSize do
       -- Basic shape for Charmander
-      local centerX, centerY = gridSize/2, gridSize/2 + 2
+      local centerX, centerY = gridSize/2, gridSize/2 + 2 * scale
       local distFromCenter = math.sqrt((x - centerX)^2 + (y - centerY)^2)
       
       -- Body
-      if distFromCenter < 3 + noise(x, y, seed) * 0.5 then
+      if distFromCenter < 3 * scale + noise(x/scale, y/scale, seed) * 0.5 * scale then
         local pixelColor = color.body
         
         -- Add belly
-        if x > centerX - 2 and x < centerX + 2 and y > centerY - 1 then
+        if x > centerX - 2 * scale and x < centerX + 2 * scale and y > centerY - 1 * scale then
           pixelColor = color.belly
         end
         
         -- Add eyes
-        if (x == centerX - 1.5 and y == centerY - 2) or 
-           (x == centerX + 1.5 and y == centerY - 2) then
+        local eyeOffsetX = 1.5 * scale
+        local eyeOffsetY = 2 * scale
+        local eyeSize = math.max(1, scale / 2)
+        
+        if (math.abs(x - (centerX - eyeOffsetX)) < eyeSize and
+            math.abs(y - (centerY - eyeOffsetY)) < eyeSize) or 
+           (math.abs(x - (centerX + eyeOffsetX)) < eyeSize and
+            math.abs(y - (centerY - eyeOffsetY)) < eyeSize) then
           pixelColor = color.eye
         end
         
@@ -196,9 +213,9 @@ function generateCharmander(gridSize, cellSize, seed)
       end
       
       -- Flame on tail
-      local tailX, tailY = centerX + 4, centerY
+      local tailX, tailY = centerX + 4 * scale, centerY
       local distFromTail = math.sqrt((x - tailX)^2 + (y - tailY)^2)
-      if distFromTail < 1.5 + noise(x, y, seed + 15) * 0.8 then
+      if distFromTail < 1.5 * scale + noise(x/scale, y/scale, seed + 15) * 0.8 * scale then
         table.insert(pixels, {
           x = x,
           y = y,
@@ -213,47 +230,79 @@ end
 -- Generate Squirtle
 function generateSquirtle(gridSize, cellSize, seed)
   local color = colors[3]
+  local scale = gridSize / 16  -- Scale factor based on 16x16 grid
   
   for y = 1, gridSize do
     for x = 1, gridSize do
       -- Basic shape for Squirtle
-      local centerX, centerY = gridSize/2, gridSize/2 + 2
-      local shellCenterX, shellCenterY = gridSize/2, gridSize/2 + 1
+      local centerX, centerY = gridSize/2, gridSize/2 + 2 * scale
+      local shellCenterX, shellCenterY = gridSize/2, gridSize/2 + 3 * scale  -- Move shell more to the back
       local distFromCenter = math.sqrt((x - centerX)^2 + (y - centerY)^2)
       local distFromShell = math.sqrt((x - shellCenterX)^2 + (y - shellCenterY)^2)
       
-      -- Shell
-      if distFromShell < 3 + noise(x, y, seed + 7) * 0.3 and y > shellCenterY - 2 then
-        table.insert(pixels, {
-          x = x,
-          y = y,
-          size = cellSize,
-          color = color.shell
-        })
-      end
-      
-      -- Body
-      if distFromCenter < 2.8 + noise(x, y, seed) * 0.4 and 
-         (y < centerY + 1 or x < centerX - 2 or x > centerX + 2) then
+      -- First render the body (blue parts)
+      if distFromCenter < 3 * scale + noise(x/scale, y/scale, seed) * 0.4 * scale then
         local pixelColor = color.body
         
-        -- Add face/belly
-        if (x > centerX - 2 and x < centerX + 2 and y > centerY - 3 and y < centerY + 1) or
-           (y < centerY - 1) then
+        -- Add face/belly (lighter color)
+        if (x > centerX - 2 * scale and x < centerX + 2 * scale and 
+            y > centerY - 3 * scale and y < centerY + 0.5 * scale) or
+           (y < centerY - 1 * scale) then
           pixelColor = color.skin
         end
         
-        -- Add eyes
-        if (x == centerX - 1.5 and y == centerY - 2) or 
-           (x == centerX + 1.5 and y == centerY - 2) then
-          pixelColor = color.eye
+        -- Only add body pixels where the shell isn't (better shell/body relationship)
+        local isShell = (distFromShell < 2.8 * scale + noise(x/scale, y/scale, seed + 7) * 0.3 * scale and 
+                       y > shellCenterY - 3 * scale and 
+                       y < shellCenterY + 2 * scale and
+                       math.abs(x - shellCenterX) < 3 * scale)
+        
+        if not isShell then
+          table.insert(pixels, {
+            x = x,
+            y = y,
+            size = cellSize,
+            color = pixelColor
+          })
+        end
+      end
+      
+      -- Add shell (drawn after body so it appears on top)
+      if distFromShell < 2.8 * scale + noise(x/scale, y/scale, seed + 7) * 0.3 * scale and 
+         y > shellCenterY - 3 * scale and 
+         y < shellCenterY + 2 * scale and
+         math.abs(x - shellCenterX) < 3 * scale then
+        
+        local shellColor = color.shell
+        
+        -- Add shell pattern
+        if noise(x*2/scale, y*2/scale, seed + 20) > 0.7 then
+          -- Shell patterns
+          shellColor = {shellColor[1] * 0.8, shellColor[2] * 0.8, shellColor[3] * 0.8}
         end
         
         table.insert(pixels, {
           x = x,
           y = y,
           size = cellSize,
-          color = pixelColor
+          color = shellColor
+        })
+      end
+      
+      -- Add eyes (on top of everything)
+      local eyeOffsetX = 1.5 * scale
+      local eyeOffsetY = 2 * scale
+      local eyeSize = math.max(1, scale / 2)
+      
+      if (math.abs(x - (centerX - eyeOffsetX)) < eyeSize and
+          math.abs(y - (centerY - eyeOffsetY)) < eyeSize) or 
+         (math.abs(x - (centerX + eyeOffsetX)) < eyeSize and
+          math.abs(y - (centerY - eyeOffsetY)) < eyeSize) then
+        table.insert(pixels, {
+          x = x,
+          y = y,
+          size = cellSize,
+          color = color.eye
         })
       end
     end
@@ -277,6 +326,16 @@ function love.keypressed(key)
   elseif key == "return" or key == "p" then
     showingPokemon = not showingPokemon
     animationTimer = 0
+  elseif key == "up" or key == "w" then
+    -- Increase grid size
+    currentGridSize = math.min(currentGridSize + 1, #gridSizes)
+    generatePokeball()
+    generatePokemon(currentPokemon)
+  elseif key == "down" or key == "s" then
+    -- Decrease grid size
+    currentGridSize = math.max(currentGridSize - 1, 1)
+    generatePokeball()
+    generatePokemon(currentPokemon)
   end
 end
 
@@ -335,8 +394,10 @@ function love.draw()
   -- Draw UI
   love.graphics.setColor(0, 0, 0)
   love.graphics.print("Current Pokemon: " .. pokemon[currentPokemon], 20, 20)
-  love.graphics.print("Controls:", 20, 740)
-  love.graphics.print("Left/Right or A/D: Cycle Pokemon", 20, 760)
+  love.graphics.print("Resolution: " .. gridSizes[currentGridSize] .. "x" .. gridSizes[currentGridSize], 20, 40)
+  love.graphics.print("Controls:", 20, 720)
+  love.graphics.print("Left/Right or A/D: Cycle Pokemon", 20, 740)
+  love.graphics.print("Up/Down or W/S: Change resolution", 20, 760)
   love.graphics.print("Space: Regenerate current Pokemon", 20, 780)
   love.graphics.print("Enter/P or Mouse Click: Toggle Pokeball", 20, 800)
 end
